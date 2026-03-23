@@ -1,0 +1,17 @@
+[36mvite v7.2.7 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 5 modules transformed.
+[31m✗[39m Build failed in 150ms
+[31merror during build:
+[31m[tanstack-router:code-splitter:compile-reference-file] Cannot read properties of undefined (reading 'buildError')[31m
+file: [36mC:/Users/User/Documents/dev/chessgraphiti/apps/frontend/web/src/routes/train.tsx[31m
+    at Scope.checkBlockScopedCollisions (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\scope\index.js:443:27)
+    at Scope.registerBinding (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\scope\index.js:544:16)
+    at Scope.registerDeclaration (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\scope\index.js:504:14)
+    at Object.ImportDeclaration (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\scope\index.js:216:12)
+    at NodePath._call (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\path\context.js:49:20)
+    at NodePath.call (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\path\context.js:39:18)
+    at NodePath.visit (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\path\context.js:88:31)
+    at TraversalContext.visitQueue (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\context.js:91:16)
+    at TraversalContext.visitMultiple (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\context.js:62:17)
+    at TraversalContext.visit (C:\Users\User\Documents\dev\chessgraphiti\node_modules\.pnpm\@babel+traverse@7.28.5\node_modules\@babel\traverse\lib\context.js:113:19)[39m

@@ -61,10 +61,6 @@ export interface GameStore {
 	playerColor: "w" | "b";
 	gameStatus: GameStatus;
 	gameOverReason?: string;
-	hoveredSquare: string | null;
-
-
-
 	// -- Engine state ------------------------------------------------------
 	isEngineThinking: boolean;
 	evaluation: number;
@@ -78,8 +74,6 @@ export interface GameStore {
 	liveGraphEnabled: boolean;
 	liveLineage: CommunityLineageAnalysis | null;
 	centralityMetric: CentralityMetric;
-	edgeWeightThreshold: number;
-	showDominance: boolean;
 
 	// -- Analysis state ----------------------------------------------------
 	analysisIndex: number;
@@ -107,13 +101,10 @@ export interface GameStore {
 	) => void;
 	toggleLiveGraph: () => void;
 	setCentralityMetric: (metric: CentralityMetric) => void;
-	setEdgeWeightThreshold: (threshold: number) => void;
-	toggleDominance: () => void;
 	setEvaluation: (score: number, mateIn?: number) => void;
 	setEngineThinking: (thinking: boolean) => void;
 	setEngineStrength: (strength: number) => void;
 	setEngineLines: (lines: string[]) => void;
-	setHoveredSquare: (square: string | null) => void;
 	rebuildGraph: () => void;
 }
 
@@ -172,8 +163,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	liveGraphEnabled: true,
 	liveLineage: null,
 	centralityMetric: "weighted",
-	edgeWeightThreshold: 0.15,
-	showDominance: true,
 
 	// -- Analysis state ----------------------------------------------------
 	analysisIndex: 0,
@@ -447,10 +436,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
 	setCentralityMetric: (metric) => set({ centralityMetric: metric }),
 
-	setEdgeWeightThreshold: (threshold) => set({ edgeWeightThreshold: threshold }),
-
-	toggleDominance: () => set((s) => ({ showDominance: !s.showDominance })),
-
 	setEvaluation: (score, mateIn) => set({ evaluation: score, mateIn }),
 
 	setEngineThinking: (thinking) => set({ isEngineThinking: thinking }),
@@ -459,8 +444,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 		set({ engineStrength }),
 
 	setEngineLines: (lines) => set({ engineLines: lines }),
-
-	setHoveredSquare: (square) => set({ hoveredSquare: square }),
 
 	rebuildGraph: () => {
 		const state = get();

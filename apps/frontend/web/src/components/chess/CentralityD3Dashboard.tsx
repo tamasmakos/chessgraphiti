@@ -1,472 +1,470 @@
-import React, { useMemo, useRef, useEffect, useState } from "react";
+/**
+ * CentralityD3Dashboard
+ *
+ * Internal CSS grid (no tabs):
+ *  ┌──────────────────────────────────────────────┐
+ *  │  Centrality Timeline        [col-span 2, 155h]│
+ *  ├───────────────────┬──────────────────────────┤
+ *  │  Structural Radar │  Force Dynamics           │
+ *  │  [col 1, sq 220h] │  [col 2, 220h]            │
+ *  └───────────────────┴──────────────────────────┘
+ */
+import React, { useMemo, useRef, useEffect } from "react";
 import * as d3 from "d3";
 import type { GraphSnapshot, GraphNode } from "@yourcompany/chess/types";
 import { COMMUNITY_COLORS } from "@yourcompany/chess/constants";
 
-type CentralityMetric = "weighted" | "degree" | "betweenness" | "closeness" | "pagerank" | "none";
+type CentralityMetric =
+  | "weighted"
+  | "degree"
+  | "betweenness"
+  | "closeness"
+  | "pagerank"
+  | "none";
 
 interface CentralityD3DashboardProps {
-	analysisGraphSnapshots: Array<GraphSnapshot | null>;
-	analysisIndex: number;
-	centralityMetric: CentralityMetric;
-	onIndexChange?: (index: number) => void;
+  analysisGraphSnapshots: Array<GraphSnapshot | null>;
+  analysisIndex: number;
+  centralityMetric: CentralityMetric;
+  onIndexChange?: (index: number) => void;
 }
+
+const METRIC_LABELS: Record<CentralityMetric, string> = {
+  weighted: "Weighted Degree",
+  degree: "Degree",
+  betweenness: "Betweenness",
+  closeness: "Closeness",
+  pagerank: "PageRank",
+  none: "None",
+};
 
 export function CentralityD3Dashboard({
-	analysisGraphSnapshots,
-	analysisIndex,
-	centralityMetric,
-	onIndexChange,
+  analysisGraphSnapshots,
+  analysisIndex,
+  centralityMetric,
+  onIndexChange,
 }: CentralityD3DashboardProps) {
-	// const [activeChart, setActiveChart] = useState<"radar" | "timeline" | "force">("timeline"); // Removed as per instruction
+  const hasData = analysisGraphSnapshots.some(Boolean);
+  const currentSnapshot = analysisGraphSnapshots[analysisIndex] ?? null;
 
-	return (
-		<div className="bg-slate-900/40 border border-slate-700/50 rounded-xl p-4 backdrop-blur-sm shadow-2xl transition-all duration-300 hover:border-slate-600/50">
-			<div className="flex items-center justify-between mb-4">
-				<div className="flex items-center gap-2">
-					<div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-					<h3 className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Topology & Dynamics</h3>
-				</div>
-				{/* Tab switcher removed as per instruction */}
-			</div>
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Section label */}
+      <div className="flex items-center justify-between px-0.5">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+            Topology &amp; Dynamics
+          </span>
+        </div>
+        <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
+          {METRIC_LABELS[centralityMetric]}
+        </span>
+      </div>
 
-			<div className="flex flex-col gap-4">
-				{/* 1. Timeline - Full Width */}
-				<div className="h-[140px] w-full border-b border-slate-800/50 pb-2">
-					<CentralityTimelineD3
-						snapshots={analysisGraphSnapshots}
-						currentIndex={analysisIndex}
-						metric={centralityMetric}
-						onIndexChange={onIndexChange}
-					/>
-				</div>
+      {/* Timeline — full width */}
+      <div className="h-[155px] w-full bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden">
+        {hasData ? (
+          <CentralityTimelineD3
+            snapshots={analysisGraphSnapshots}
+            currentIndex={analysisIndex}
+            metric={centralityMetric}
+            onIndexChange={onIndexChange}
+          />
+        ) : (
+          <EmptyState label="Play moves to build the centrality history" />
+        )}
+      </div>
 
-				{/* 2. Radar & Force - Side-by-Side */}
-				<div className="h-[200px] grid grid-cols-2 gap-4">
-					<div className="border-r border-slate-800/50 pr-2">
-						<div className="text-[8px] font-black text-slate-500 uppercase mb-2 tracking-taper">Structural Radar</div>
-						<CentralityRadarD3
-							snapshot={analysisGraphSnapshots[analysisIndex] ?? null}
-							metric={centralityMetric}
-						/>
-					</div>
-					<div>
-						<div className="text-[8px] font-black text-slate-500 uppercase mb-2 tracking-taper">Force Dynamics</div>
-						<CentralityForceD3
-							snapshot={analysisGraphSnapshots[analysisIndex] ?? null}
-							metric={centralityMetric}
-						/>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+      {/* Radar (left) + Force (right) — 2-column, fixed height */}
+      <div className="grid grid-cols-2 gap-1.5" style={{ height: 220 }}>
+        {/* Radar */}
+        <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col">
+          <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
+            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
+              Structural Radar
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            {currentSnapshot ? (
+              <CentralityRadarD3
+                snapshot={currentSnapshot}
+                metric={centralityMetric}
+              />
+            ) : (
+              <EmptyState label="No data" />
+            )}
+          </div>
+        </div>
+
+        {/* Force */}
+        <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col">
+          <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
+            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
+              Force Dynamics
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            {currentSnapshot ? (
+              <CentralityForceD3
+                snapshot={currentSnapshot}
+                metric={centralityMetric}
+              />
+            ) : (
+              <EmptyState label="No data" />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// --- D3 Timeline Sub-component ---
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <p className="text-[10px] text-slate-700 font-medium text-center max-w-[120px] leading-snug">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Timeline
+// ---------------------------------------------------------------------------
 function CentralityTimelineD3({
-	snapshots,
-	currentIndex,
-	metric,
-	onIndexChange,
+  snapshots,
+  currentIndex,
+  metric,
+  onIndexChange,
 }: {
-	snapshots: Array<GraphSnapshot | null>;
-	currentIndex: number;
-	metric: CentralityMetric;
-	onIndexChange?: (index: number) => void;
+  snapshots: Array<GraphSnapshot | null>;
+  currentIndex: number;
+  metric: CentralityMetric;
+  onIndexChange?: (index: number) => void;
 }) {
-	const svgRef = useRef<SVGSVGElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-	const data = useMemo(() => {
-		const bySquare = new Map<string, { square: string; values: number[]; color: string }>();
-		
-		// Get top 5 pieces by movement delta across the whole game
-		for (let i = 0; i < snapshots.length; i++) {
-			const snap = snapshots[i];
-			if (!snap) continue;
-			for (const node of snap.nodes) {
-				if (!bySquare.has(node.square)) {
-					const color = COMMUNITY_COLORS[node.communityId % COMMUNITY_COLORS.length] || "#ccc";
-					bySquare.set(node.square, { square: node.square, values: new Array(snapshots.length).fill(0), color });
-				}
-				const entry = bySquare.get(node.square);
-				if (entry) {
-					entry.values[i] = getMetricValue(node, metric);
-				}
-			}
-		}
+  const data = useMemo(() => {
+    const bySquare = new Map<
+      string,
+      { square: string; values: number[]; color: string }
+    >();
 
-		const entries = Array.from(bySquare.values())
-			.map(e => ({ ...e, delta: Math.max(...e.values) - Math.min(...e.values) }))
-			.sort((a, b) => b.delta - a.delta)
-			.slice(0, 5);
+    for (let i = 0; i < snapshots.length; i++) {
+      const snap = snapshots[i];
+      if (!snap) continue;
+      for (const node of snap.nodes) {
+        if (!bySquare.has(node.square)) {
+          const color =
+            COMMUNITY_COLORS[node.communityId % COMMUNITY_COLORS.length] ||
+            "#ccc";
+          bySquare.set(node.square, {
+            square: node.square,
+            values: new Array(snapshots.length).fill(0),
+            color,
+          });
+        }
+        const entry = bySquare.get(node.square);
+        if (entry) entry.values[i] = getMetricValue(node, metric);
+      }
+    }
 
-		// Global max for scaling
-		const maxVal = Math.max(...entries.flatMap(e => e.values), 0.1);
+    const entries = Array.from(bySquare.values())
+      .map((e) => ({ ...e, delta: Math.max(...e.values) - Math.min(...e.values) }))
+      .sort((a, b) => b.delta - a.delta)
+      .slice(0, 6);
 
-		return { entries, maxVal };
-	}, [snapshots, metric]);
+    const maxVal = Math.max(...entries.flatMap((e) => e.values), 0.1);
+    return { entries, maxVal };
+  }, [snapshots, metric]);
 
-	useEffect(() => {
-		if (!svgRef.current || data.entries.length === 0) return;
+  useEffect(() => {
+    if (!svgRef.current || data.entries.length === 0) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
 
-		const svg = d3.select(svgRef.current);
-		svg.selectAll("*").remove();
+    const width = svgRef.current.clientWidth;
+    const height = svgRef.current.clientHeight;
+    const m = { top: 10, right: 42, bottom: 18, left: 30 };
+    const iw = width - m.left - m.right;
+    const ih = height - m.top - m.bottom;
 
-		const width = svgRef.current.clientWidth;
-		const height = svgRef.current.clientHeight;
-		const margin = { top: 10, right: 10, bottom: 25, left: 35 };
-		const innerWidth = width - margin.left - margin.right;
-		const innerHeight = height - margin.top - margin.bottom;
+    const x = d3.scaleLinear().domain([0, Math.max(1, snapshots.length - 1)]).range([0, iw]);
+    const y = d3.scaleLinear().domain([0, data.maxVal]).range([ih, 0]).nice();
+    const g = svg.append("g").attr("transform", `translate(${m.left},${m.top})`);
 
-		const x = d3.scaleLinear().domain([0, snapshots.length - 1]).range([0, innerWidth]);
-		const y = d3.scaleLinear().domain([0, data.maxVal]).range([innerHeight, 0]).nice();
+    // Grid
+    g.append("g").selectAll("line.grid")
+      .data(y.ticks(4)).join("line")
+      .attr("x1", 0).attr("x2", iw)
+      .attr("y1", (d) => y(d)).attr("y2", (d) => y(d))
+      .attr("stroke", "rgba(51,65,85,0.22)").attr("stroke-width", 1);
 
-		const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    // Y Axis
+    g.append("g")
+      .call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(".2f")).tickSize(0).tickPadding(5))
+      .call((ax) => ax.select(".domain").remove())
+      .call((ax) => ax.selectAll("text").attr("font-size", "8px").attr("fill", "rgba(100,116,139,0.7)").attr("font-family", "monospace"));
 
-		// Grid lines - reduced opacity for better timeline visibility
-		g.append("g")
-			.attr("class", "grid")
-			.attr("stroke", "rgba(51, 65, 85, 0.08)")
-			.call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat(() => ""));
+    // X Axis
+    g.append("g").attr("transform", `translate(0,${ih})`)
+      .call(d3.axisBottom(x).ticks(Math.min(8, snapshots.length)).tickSize(2).tickPadding(3))
+      .call((ax) => ax.select(".domain").remove())
+      .call((ax) => ax.selectAll("text").attr("font-size", "8px").attr("fill", "rgba(100,116,139,0.5)").attr("font-family", "monospace"));
 
-		// Axes
-		g.append("g")
-			.attr("transform", `translate(0,${innerHeight})`)
-			.call(d3.axisBottom(x).ticks(Math.min(10, snapshots.length)).tickSize(0).tickPadding(8))
-			.attr("color", "rgba(148, 163, 184, 0.5)")
-			.select(".domain").remove();
+    // Lines
+    const line = d3.line<number>().x((_, i) => x(i)).y((d) => y(d)).curve(d3.curveMonotoneX);
+    data.entries.forEach((entry) => {
+      g.append("path").datum(entry.values)
+        .attr("fill", "none").attr("stroke", entry.color).attr("stroke-width", 1.5)
+        .attr("d", line as any).attr("opacity", 0.85)
+        .style("filter", `drop-shadow(0 0 2px ${entry.color}44)`);
 
-		g.append("g")
-			.call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(".1f")))
-			.attr("color", "rgba(148, 163, 184, 0.5)")
-			.select(".domain").remove();
+      const lastVal = entry.values[snapshots.length - 1];
+      if (lastVal !== undefined) {
+        g.append("text")
+          .attr("x", iw + 4).attr("y", y(lastVal)).attr("dy", "0.35em")
+          .attr("font-size", "8px").attr("fill", entry.color)
+          .attr("font-family", "monospace").attr("font-weight", "bold")
+          .text(entry.square);
+      }
+    });
 
-		const line = d3.line<number>()
-			.x((d: number, i: number) => x(i))
-			.y((d: number) => y(d))
-			.curve(d3.curveMonotoneX);
+    // Current step line
+    g.append("line")
+      .attr("x1", x(currentIndex)).attr("x2", x(currentIndex))
+      .attr("y1", 0).attr("y2", ih)
+      .attr("stroke", "#6366f1").attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "3,2").attr("opacity", 0.85);
 
-		// Draw lines
-		const pathGroup = g.append("g").attr("class", "lines");
-		
-		data.entries.forEach((entry) => {
-			pathGroup.append("path")
-				.datum(entry.values)
-				.attr("fill", "none")
-				.attr("stroke", entry.color)
-				.attr("stroke-width", 2)
-				.attr("d", line as any)
-				.style("filter", `drop-shadow(0 0 2px ${entry.color}44)`)
-				.attr("opacity", 0.7);
+    // Click-to-navigate overlay
+    if (onIndexChange) {
+      svg.append("rect")
+        .attr("x", m.left).attr("y", m.top).attr("width", iw).attr("height", ih)
+        .attr("fill", "transparent").style("cursor", "crosshair")
+        .on("click", (event) => {
+          const [mx] = d3.pointer(event);
+          const step = Math.round(x.invert(mx - m.left));
+          if (step >= 0 && step < snapshots.length) onIndexChange(step);
+        })
+        .on("mousemove", (event) => {
+          if (!tooltipRef.current) return;
+          const [mx] = d3.pointer(event);
+          const step = Math.round(x.invert(mx - m.left));
+          if (step < 0 || step >= snapshots.length) return;
+          const lines = data.entries.map((e) =>
+            `<span style="color:${e.color}">${e.square}: ${(e.values[step] ?? 0).toFixed(3)}</span>`
+          );
+          const px = x(step) + m.left;
+          const tip = tooltipRef.current;
+          tip.style.display = "block";
+          tip.style.left = `${Math.min(px + 8, width - 90)}px`;
+          tip.style.top = `${m.top}px`;
+          tip.innerHTML = `<div style="font-size:9px;font-weight:900;color:#94a3b8;margin-bottom:2px">STEP ${step}</div>${lines.join("<br/>")}`;
+        })
+        .on("mouseleave", () => {
+          if (tooltipRef.current) tooltipRef.current.style.display = "none";
+        });
+    }
+  }, [data, currentIndex, snapshots.length, onIndexChange]);
 
-			// Square label at the end of the line
-			const lastVal = entry.values[snapshots.length - 1];
-			g.append("text")
-				.attr("x", innerWidth + 2)
-				.attr("y", (y(lastVal) ?? 0) as number)
-				.attr("dy", "0.35em")
-				.attr("font-size", "8px")
-				.attr("fill", entry.color)
-				.attr("font-family", "monospace")
-				.text(entry.square);
-		});
+  if (data.entries.length === 0) return <EmptyState label="Play moves to see centrality history" />;
 
-		// Focus bar (current step)
-		g.append("line")
-			.attr("x1", x(currentIndex))
-			.attr("x2", x(currentIndex))
-			.attr("y1", 0)
-			.attr("y2", innerHeight)
-			.attr("stroke", "#6366f1")
-			.attr("stroke-width", 2)
-			.attr("stroke-dasharray", "4,2");
-
-		// Invisible overlay for tooltips and clicking
-		svg.append("rect")
-			.attr("width", width)
-			.attr("height", height)
-			.attr("fill", "transparent")
-			.on("mousemove", (event: any) => {
-				const [mx] = d3.pointer(event);
-				const step = Math.round(x.invert(mx - margin.left));
-				if (step >= 0 && step < snapshots.length && onIndexChange) {
-					// We could show a tooltip here or just allow click
-				}
-			})
-			.on("click", (event: any) => {
-				const [mx] = d3.pointer(event);
-				const step = Math.round(x.invert(mx - margin.left));
-				if (step >= 0 && step < snapshots.length && onIndexChange) {
-					onIndexChange(step);
-				}
-			});
-
-	}, [data, currentIndex, snapshots.length, onIndexChange]);
-
-	if (data.entries.length === 0) {
-		return (
-			<div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-slate-700/50 rounded-xl bg-slate-900/20 p-8 text-center group">
-				<div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-3 group-hover:bg-indigo-500/10 transition-colors">
-					<span className="text-xl">📈</span>
-				</div>
-				<h4 className="text-[11px] font-black text-slate-300 uppercase tracking-widest mb-1">No Timeline Data</h4>
-				<p className="text-[10px] text-slate-500 max-w-[180px] leading-tight font-medium">
-					Make a few moves to build the topological history of this game.
-				</p>
-			</div>
-		);
-	}
-
-	return <svg ref={svgRef} className="w-full h-full cursor-crosshair overflow-visible" />;
+  return (
+    <div className="relative w-full h-full">
+      <svg ref={svgRef} className="w-full h-full" />
+      <div
+        ref={tooltipRef}
+        className="absolute pointer-events-none bg-slate-900/95 border border-slate-700/80 rounded-lg px-2 py-1.5 text-[10px] font-mono shadow-2xl leading-snug z-10"
+        style={{ display: "none" }}
+      />
+    </div>
+  );
 }
 
-// --- D3 Radar Sub-component ---
-function CentralityRadarD3({
-	snapshot,
-	metric
-}: {
-	snapshot: GraphSnapshot | null;
-	metric: CentralityMetric;
-}) {
-	const svgRef = useRef<SVGSVGElement>(null);
+// ---------------------------------------------------------------------------
+// Radar
+// ---------------------------------------------------------------------------
+function CentralityRadarD3({ snapshot, metric }: { snapshot: GraphSnapshot; metric: CentralityMetric }) {
+  const svgRef = useRef<SVGSVGElement>(null);
 
-	const data = useMemo(() => {
-		if (!snapshot) return [];
-		// Get top 3 pieces by current metric
-		const top = [...snapshot.nodes]
-			.sort((a, b) => getMetricValue(b, metric) - getMetricValue(a, metric))
-			.slice(0, 3);
+  const data = useMemo(() => {
+    return [...snapshot.nodes]
+      .sort((a, b) => getMetricValue(b, metric) - getMetricValue(a, metric))
+      .slice(0, 3)
+      .map((node) => ({
+        node,
+        name: node.square,
+        color: COMMUNITY_COLORS[node.communityId % COMMUNITY_COLORS.length] || "#ccc",
+      }));
+  }, [snapshot, metric]);
 
-		return top.map(node => ({
-			name: node.square,
-			color: COMMUNITY_COLORS[node.communityId % COMMUNITY_COLORS.length],
-			weighted: node.centralityWeighted,
-			degree: node.centralityDegree,
-			betweenness: node.centralityBetweenness,
-			closeness: node.centralityCloseness,
-			pagerank: node.centralityPageRank
-		}));
-	}, [snapshot, metric]);
+  useEffect(() => {
+    if (!svgRef.current || data.length === 0) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
 
-	useEffect(() => {
-		if (!svgRef.current || data.length === 0) return;
+    const width = svgRef.current.clientWidth;
+    const height = svgRef.current.clientHeight;
+    const radius = Math.min(width, height) / 2 - 22;
+    const cx = width / 2;
+    const cy = height / 2;
 
-		const svg = d3.select(svgRef.current);
-		svg.selectAll("*").remove();
+    const axes = ["weighted", "degree", "betweenness", "closeness", "pagerank"] as const;
+    const axisLabels = ["Wgt", "Deg", "Btw", "Cls", "PR"];
+    const angleSlice = (Math.PI * 2) / axes.length;
+    const rScale = d3.scaleLinear().domain([0, 1]).range([0, radius]);
+    const g = svg.append("g").attr("transform", `translate(${cx},${cy})`);
 
-		const width = svgRef.current.clientWidth;
-		const height = svgRef.current.clientHeight;
-		const radius = Math.min(width, height) / 2 - 30;
-		const centerX = width / 2;
-		const centerY = height / 2;
+    // Rings
+    [0.25, 0.5, 0.75, 1].forEach((d) => {
+      g.append("circle").attr("r", rScale(d))
+        .attr("fill", "none").attr("stroke", "rgba(51,65,85,0.35)").attr("stroke-dasharray", "2,3");
+    });
 
-		const axes = ["weighted", "degree", "betweenness", "closeness", "pagerank"];
-		const angleSlice = (Math.PI * 2) / axes.length;
+    // Axes + labels
+    axes.forEach((axis, i) => {
+      const angle = angleSlice * i - Math.PI / 2;
+      const lx = rScale(1.22) * Math.cos(angle);
+      const ly = rScale(1.22) * Math.sin(angle);
+      g.append("line").attr("x1", 0).attr("y1", 0)
+        .attr("x2", rScale(1) * Math.cos(angle)).attr("y2", rScale(1) * Math.sin(angle))
+        .attr("stroke", "rgba(51,65,85,0.4)");
+      g.append("text")
+        .attr("x", lx).attr("y", ly).attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+        .attr("font-size", "7px").attr("fill", "rgba(148,163,184,0.7)")
+        .attr("font-family", "monospace").attr("font-weight", "bold")
+        .text(axisLabels[i] || axis);
+    });
 
-		const rScale = d3.scaleLinear().domain([0, 1]).range([0, radius]); // Assuming normalized values
+    const maxes = {
+      weighted: Math.max(...snapshot.nodes.map((n) => n.centralityWeighted), 0.001),
+      degree: Math.max(...snapshot.nodes.map((n) => n.centralityDegree), 0.001),
+      betweenness: Math.max(...snapshot.nodes.map((n) => n.centralityBetweenness), 0.001),
+      closeness: Math.max(...snapshot.nodes.map((n) => n.centralityCloseness), 0.001),
+      pagerank: Math.max(...snapshot.nodes.map((n) => n.centralityPageRank), 0.001),
+    };
 
-		const g = svg.append("g").attr("transform", `translate(${centerX},${centerY})`);
+    const radarLine = d3.lineRadial<any>()
+      .radius((d: any) => rScale(d.value)).angle((_, i) => i * angleSlice).curve(d3.curveLinearClosed);
 
-		// Draw background circles
-		[0.2, 0.4, 0.6, 0.8, 1].forEach(d => {
-			g.append("circle")
-				.attr("r", rScale(d))
-				.attr("fill", "none")
-				.attr("stroke", "rgba(71, 85, 105, 0.3)")
-				.attr("stroke-dasharray", "2,2");
-		});
+    data.forEach((d) => {
+      const values = axes.map((axis) => ({
+        axis, value: Math.min(1, (d.node[("centrality" + axis.charAt(0).toUpperCase() + axis.slice(1)) as keyof GraphNode] as number) / maxes[axis]),
+      }));
+      g.append("path").datum(values).attr("d", radarLine)
+        .attr("fill", d.color).attr("fill-opacity", 0.12)
+        .attr("stroke", d.color).attr("stroke-width", 1.5)
+        .style("filter", `drop-shadow(0 0 3px ${d.color}44)`);
+      values.forEach((v, i) => {
+        const angle = angleSlice * i - Math.PI / 2;
+        g.append("circle").attr("r", 2.5)
+          .attr("cx", rScale(v.value) * Math.cos(angle)).attr("cy", rScale(v.value) * Math.sin(angle))
+          .attr("fill", d.color).attr("stroke", "rgba(15,23,42,0.8)").attr("stroke-width", 1);
+      });
+    });
 
-		// Draw axis lines and labels
-		axes.forEach((axis, i) => {
-			const x = rScale(1.1) * Math.cos(angleSlice * i - Math.PI / 2);
-			const y = rScale(1.1) * Math.sin(angleSlice * i - Math.PI / 2);
+    // Legend
+    data.forEach((d, i) => {
+      const lx = -cx + 8;
+      const ly = -cy + 10 + i * 12;
+      g.append("circle").attr("cx", lx).attr("cy", ly).attr("r", 3).attr("fill", d.color);
+      g.append("text").attr("x", lx + 6).attr("y", ly).attr("dy", "0.35em")
+        .attr("font-size", "7px").attr("fill", d.color).attr("font-family", "monospace").text(d.name);
+    });
+  }, [data, snapshot]);
 
-			g.append("line")
-				.attr("x1", 0)
-				.attr("y1", 0)
-				.attr("x2", rScale(1) * Math.cos(angleSlice * i - Math.PI / 2))
-				.attr("y2", rScale(1) * Math.sin(angleSlice * i - Math.PI / 2))
-				.attr("stroke", "rgba(71, 85, 105, 0.5)");
-
-			g.append("text")
-				.attr("x", x)
-				.attr("y", y)
-				.attr("text-anchor", "middle")
-				.attr("alignment-baseline", "middle")
-				.attr("font-size", "7px")
-				.attr("fill", "rgba(148, 163, 184, 0.8)")
-				.attr("font-family", "monospace")
-				.attr("font-weight", "bold")
-				.text(axis.toUpperCase().substring(0, 3));
-		});
-
-		// Max values for normalization of each axis
-		const maxes = {
-			weighted: Math.max(...snapshot!.nodes.map(n => n.centralityWeighted), 0.1),
-			degree: Math.max(...snapshot!.nodes.map(n => n.centralityDegree), 0.1),
-			betweenness: Math.max(...snapshot!.nodes.map(n => n.centralityBetweenness), 0.1),
-			closeness: Math.max(...snapshot!.nodes.map(n => n.centralityCloseness), 0.1),
-			pagerank: Math.max(...snapshot!.nodes.map(n => n.centralityPageRank), 0.1),
-		};
-
-		// Draw blobs
-		const radarLine = d3.lineRadial<any>()
-			.radius((d: any) => rScale(d.value))
-			.angle((d: any, i: number) => i * angleSlice)
-			.curve(d3.curveLinearClosed);
-
-		data.forEach((d) => {
-			const values = axes.map(axis => ({
-				axis,
-				value: (d[axis as keyof typeof d] as number) / (maxes[axis as keyof typeof maxes] || 1)
-			}));
-
-			g.append("path")
-				.datum(values)
-				.attr("d", radarLine)
-				.attr("fill", d.color || "#ccc")
-				.attr("fill-opacity", 0.15)
-				.attr("stroke", d.color || "#ccc")
-				.attr("stroke-width", 2)
-				.style("filter", `drop-shadow(0 0 3px ${d.color}66)`)
-				.append("title")
-				.text(d.name);
-
-			// Draw dots for each point
-			values.forEach((v, i) => {
-				g.append("circle")
-					.attr("r", 2.5)
-					.attr("cx", rScale(v.value) * Math.cos(angleSlice * i - Math.PI / 2))
-					.attr("cy", rScale(v.value) * Math.sin(angleSlice * i - Math.PI / 2))
-					.attr("fill", d.color || "#ccc")
-					.attr("stroke", "white")
-					.attr("stroke-width", 0.5);
-			});
-		});
-
-	}, [data, snapshot]);
-
-	return <svg ref={svgRef} className="w-full h-full" />;
+  return <svg ref={svgRef} className="w-full h-full" />;
 }
 
-// --- Centrality Force Directed Graph View ---
-function CentralityForceD3({
-	snapshot,
-	metric
-}: {
-	snapshot: GraphSnapshot | null;
-	metric: CentralityMetric;
-}) {
-	const svgRef = useRef<SVGSVGElement>(null);
+// ---------------------------------------------------------------------------
+// Force
+// ---------------------------------------------------------------------------
+function CentralityForceD3({ snapshot, metric }: { snapshot: GraphSnapshot; metric: CentralityMetric }) {
+  const svgRef = useRef<SVGSVGElement>(null);
 
-	useEffect(() => {
-		if (!svgRef.current || !snapshot) return;
+  useEffect(() => {
+    if (!svgRef.current || !snapshot) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
 
-		const svg = d3.select(svgRef.current);
-		svg.selectAll("*").remove();
+    const width = svgRef.current.clientWidth;
+    const height = svgRef.current.clientHeight;
 
-		const width = svgRef.current.clientWidth;
-		const height = svgRef.current.clientHeight;
+    const nodes = snapshot.nodes.map((n) => ({ ...n, id: n.square }));
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const links = snapshot.edges
+      .filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to))
+      .map((e) => ({ source: e.from, target: e.to, weight: e.weight, type: e.type }));
 
-		const nodes = snapshot.nodes.map(n => ({ ...n, id: n.square }));
-		// Filter links to ensure both source and target exist in nodes
-		const nodeIds = new Set(nodes.map(n => n.id));
-		const links = snapshot.edges
-			.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to))
-			.map(e => ({ source: e.from, target: e.to, weight: e.weight, type: e.type }));
+    const maxW = Math.max(...links.map((l) => Math.abs(l.weight)), 1);
 
-		// Max weight for normalization
-		const maxWeight = Math.max(...links.map(l => Math.abs(l.weight)), 1);
+    const simulation = d3.forceSimulation(nodes as any)
+      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(38)
+        .strength((d) => Math.min(0.7, (Math.log1p(d.weight) / Math.log1p(maxW)) * 0.35)))
+      .force("charge", d3.forceManyBody().strength(-100))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(13))
+      .alphaDecay(0.055);
 
-		const simulation = d3.forceSimulation(nodes as any)
-			.force("link", d3.forceLink(links)
-				.id((d: any) => d.id)
-				.distance(50)
-				.strength(d => Math.min(1.0, (Math.log1p(d.weight) / Math.log1p(maxWeight)) * 0.5)) // Normalized strength
-			)
-			.force("charge", d3.forceManyBody().strength(-150))
-			.force("center", d3.forceCenter(width / 2, height / 2))
-			.force("collision", d3.forceCollide().radius(20))
-			.alphaDecay(0.05); // Settle slightly faster
+    const g = svg.append("g");
 
-		const g = svg.append("g");
+    const link = g.append("g").selectAll("line").data(links).join("line")
+      .attr("stroke", (d) => d.type === "attack" ? "rgba(244,63,94,0.22)" : "rgba(34,197,94,0.18)")
+      .attr("stroke-width", (d) => Math.sqrt(d.weight) * 1.3);
 
-		// Draw links
-		const link = g.append("g")
-			.selectAll("line")
-			.data(links)
-			.join("line")
-			.attr("stroke", d => d.type === 'attack' ? 'rgba(244, 63, 94, 0.2)' : 'rgba(34, 197, 94, 0.2)')
-			.attr("stroke-width", d => Math.sqrt(d.weight) * 2);
+    const node = g.append("g").selectAll("g").data(nodes).join("g")
+      .call(
+        d3.drag<any, any>()
+          .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+          .on("end", (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
+      );
 
-		// Draw nodes
-		const node = g.append("g")
-			.selectAll("g")
-			.data(nodes)
-			.join("g")
-			.call(d3.drag<any, any>()
-				.on("start", (event, d) => {
-					if (!event.active) simulation.alphaTarget(0.3).restart();
-					d.fx = d.x;
-					d.fy = d.y;
-				})
-				.on("drag", (event, d) => {
-					d.fx = event.x;
-					d.fy = event.y;
-				})
-				.on("end", (event, d) => {
-					if (!event.active) simulation.alphaTarget(0);
-					d.fx = null;
-					d.fy = null;
-				}) as any);
+    node.append("circle")
+      .attr("r", (d) => 5 + getMetricValue(d as any, metric) * 11)
+      .attr("fill", (d) => COMMUNITY_COLORS[d.communityId % COMMUNITY_COLORS.length] || "#ccc")
+      .attr("stroke", "rgba(15,23,42,0.5)").attr("stroke-width", 1)
+      .style("filter", (d) => `drop-shadow(0 0 3px ${COMMUNITY_COLORS[d.communityId % COMMUNITY_COLORS.length] || "#ccc"}33)`);
 
-		node.append("circle")
-			.attr("r", d => 6 + getMetricValue(d as any, metric) * 15)
-			.attr("fill", d => COMMUNITY_COLORS[d.communityId % COMMUNITY_COLORS.length] || "#ccc")
-			.attr("stroke", "#1e293b")
-			.attr("stroke-width", 1.5)
-			.style("filter", d => `drop-shadow(0 0 3px ${COMMUNITY_COLORS[d.communityId % COMMUNITY_COLORS.length] || "#ccc"}44)`);
+    node.append("text")
+      .attr("dy", "0.35em").attr("text-anchor", "middle")
+      .attr("font-size", "6px").attr("font-weight", "bold")
+      .attr("fill", "rgba(255,255,255,0.9)").attr("pointer-events", "none")
+      .text((d) => d.square);
 
-		node.append("text")
-			.attr("dy", "0.35em")
-			.attr("text-anchor", "middle")
-			.attr("font-size", "7px")
-			.attr("font-weight", "bold")
-			.attr("fill", "white")
-			.attr("pointer-events", "none")
-			.text(d => d.square);
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d: any) => isFinite(d.source.x) ? d.source.x : 0)
+        .attr("y1", (d: any) => isFinite(d.source.y) ? d.source.y : 0)
+        .attr("x2", (d: any) => isFinite(d.target.x) ? d.target.x : 0)
+        .attr("y2", (d: any) => isFinite(d.target.y) ? d.target.y : 0);
+      node.attr("transform", (d: any) =>
+        `translate(${isFinite(d.x) ? d.x : 0},${isFinite(d.y) ? d.y : 0})`);
+    });
 
-		simulation.on("tick", () => {
-			link
-				.attr("x1", (d: any) => isFinite(d.source.x) ? d.source.x : 0)
-				.attr("y1", (d: any) => isFinite(d.source.y) ? d.source.y : 0)
-				.attr("x2", (d: any) => isFinite(d.target.x) ? d.target.x : 0)
-				.attr("y2", (d: any) => isFinite(d.target.y) ? d.target.y : 0);
+    return () => { simulation.stop(); };
+  }, [snapshot, metric]);
 
-			node.attr("transform", (d: any) => {
-				const x = isFinite(d.x) ? d.x : 0;
-				const y = isFinite(d.y) ? d.y : 0;
-				return `translate(${x},${y})`;
-			});
-		});
-
-		return () => {
-			simulation.stop();
-		};
-	}, [snapshot, metric]);
-
-	return <svg ref={svgRef} className="w-full h-full cursor-grab active:cursor-grabbing" />;
+  return <svg ref={svgRef} className="w-full h-full cursor-grab active:cursor-grabbing" />;
 }
 
-// --- Utils ---
+// ---------------------------------------------------------------------------
+// Utility
+// ---------------------------------------------------------------------------
 function getMetricValue(node: GraphNode, metric: CentralityMetric): number {
-	switch (metric) {
-		case "weighted": return node.centralityWeighted;
-		case "degree": return node.centralityDegree;
-		case "betweenness": return node.centralityBetweenness;
-		case "closeness": return node.centralityCloseness;
-		case "pagerank": return node.centralityPageRank;
-		default: return 0;
-	}
+  switch (metric) {
+    case "weighted": return node.centralityWeighted;
+    case "degree": return node.centralityDegree;
+    case "betweenness": return node.centralityBetweenness;
+    case "closeness": return node.centralityCloseness;
+    case "pagerank": return node.centralityPageRank;
+    default: return 0;
+  }
 }

@@ -203,38 +203,43 @@ export const GraphOverlay = React.memo(function GraphOverlay({
       ),
       1,
     );
+    const maxSideControllers = Math.max(
+      ...[...bySquare.values()].flatMap(
+        (entry) => [entry.whiteControllers.size, entry.blackControllers.size]
+      ),
+      1,
+    );
     const squareSize = boardWidth / 8;
 
     return [...bySquare.entries()].map(([square, value]) => {
       const { x, y } = squareToTopLeft(square, boardWidth, orientation);
       const whiteCount = value.whiteControllers.size;
       const blackCount = value.blackControllers.size;
-      const totalControllers = whiteCount + blackCount;
       const padding = squareSize * 0.05;
       const maxBarLength = squareSize - padding * 2;
 
-      const whiteOpacity =
-        whiteCount > 0
-          ? Math.min(1, 0.4 + (whiteCount / maxControllers) * 0.6)
-          : 0;
-      const blackOpacity =
-        blackCount > 0
-          ? Math.min(1, 0.4 + (blackCount / maxControllers) * 0.6)
-          : 0;
+      const whiteIntensity = whiteCount / maxSideControllers;
+      const blackIntensity = blackCount / maxSideControllers;
+
+      // Base opacities - more aggressive scaling
+      const whiteOpacity = whiteCount > 0 ? Math.min(1, 0.3 + whiteIntensity * 0.7) : 0;
+      const blackOpacity = blackCount > 0 ? Math.min(1, 0.3 + blackIntensity * 0.7) : 0;
+
+      // Halos for strong dominance pieces
+      const whiteHaloOpacity = whiteIntensity > 0.5 ? (whiteIntensity - 0.4) * 0.8 : 0;
+      const blackHaloOpacity = blackIntensity > 0.5 ? (blackIntensity - 0.4) * 0.8 : 0;
+
+      // Pulse animation for extreme pressure
+      const whitePulse = whiteIntensity > 0.8;
+      const blackPulse = blackIntensity > 0.8;
 
       const whiteThickness =
         whiteCount > 0
-          ? Math.max(
-              2,
-              squareSize * 0.025 + (whiteCount / maxControllers) * squareSize * 0.03,
-            )
+          ? Math.max(2, squareSize * 0.025 + Math.pow(whiteIntensity, 1.5) * squareSize * 0.05)
           : 0;
       const blackThickness =
         blackCount > 0
-          ? Math.max(
-              2,
-              squareSize * 0.025 + (blackCount / maxControllers) * squareSize * 0.03,
-            )
+          ? Math.max(2, squareSize * 0.025 + Math.pow(blackIntensity, 1.5) * squareSize * 0.05)
           : 0;
 
       const whiteY =
@@ -249,21 +254,21 @@ export const GraphOverlay = React.memo(function GraphOverlay({
 
       const whiteLength =
         whiteCount > 0
-          ? Math.max(
-              squareSize * 0.25,
-              maxBarLength * Math.sqrt(whiteCount / maxControllers),
-            )
+          ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(whiteIntensity))
           : 0;
       const blackLength =
         blackCount > 0
-          ? Math.max(
-              squareSize * 0.25,
-              maxBarLength * Math.sqrt(blackCount / maxControllers),
-            )
+          ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(blackIntensity))
           : 0;
 
       const whiteX = x + (squareSize - whiteLength) / 2;
       const blackX = x + (squareSize - blackLength) / 2;
+
+      // When pressure is very high, shift colors slightly hotter 
+      // Rose-500 is rgba(244,63,94,1), if intense shift to Rose-400 or lighter
+      const whiteColor = whiteIntensity > 0.8 ? "rgba(251,113,133,1)" : "rgba(244,63,94,1)";
+      // Teal-500 is rgba(20,184,166,1), if intense shift to Teal-400
+      const blackColor = blackIntensity > 0.8 ? "rgba(45,212,191,1)" : "rgba(20,184,166,1)";
 
       return {
         key: square,
@@ -275,7 +280,9 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           width: whiteLength,
           height: whiteThickness,
           opacity: whiteOpacity,
-          color: "rgba(244,63,94,1)",
+          haloOpacity: whiteHaloOpacity,
+          color: whiteColor,
+          pulse: whitePulse,
         },
         black: {
           x: blackX,
@@ -283,7 +290,9 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           width: blackLength,
           height: blackThickness,
           opacity: blackOpacity,
-          color: "rgba(20,184,166,1)",
+          haloOpacity: blackHaloOpacity,
+          color: blackColor,
+          pulse: blackPulse,
         },
       };
     });
@@ -345,26 +354,52 @@ export const GraphOverlay = React.memo(function GraphOverlay({
       {dominanceCells.map((cell) => (
         <g key={`dom-${cell.key}`}>
           {cell.showWhite && (
-            <rect
-              x={cell.white.x}
-              y={cell.white.y}
-              width={cell.white.width}
-              height={cell.white.height}
-              fill={cell.white.color}
-              opacity={cell.white.opacity}
-              rx={cell.white.height / 2}
-            />
+            <g className={cell.white.pulse ? "animate-pulse" : ""}>
+              {cell.white.haloOpacity > 0 && (
+                <rect
+                  x={cell.white.x - 3}
+                  y={cell.white.y - 3}
+                  width={cell.white.width + 6}
+                  height={cell.white.height + 6}
+                  fill={cell.white.color}
+                  opacity={cell.white.haloOpacity}
+                  rx={(cell.white.height + 6) / 2}
+                />
+              )}
+              <rect
+                x={cell.white.x}
+                y={cell.white.y}
+                width={cell.white.width}
+                height={cell.white.height}
+                fill={cell.white.color}
+                opacity={cell.white.opacity}
+                rx={cell.white.height / 2}
+              />
+            </g>
           )}
           {cell.showBlack && (
-            <rect
-              x={cell.black.x}
-              y={cell.black.y}
-              width={cell.black.width}
-              height={cell.black.height}
-              fill={cell.black.color}
-              opacity={cell.black.opacity}
-              rx={cell.black.height / 2}
-            />
+            <g className={cell.black.pulse ? "animate-pulse" : ""}>
+              {cell.black.haloOpacity > 0 && (
+                <rect
+                  x={cell.black.x - 3}
+                  y={cell.black.y - 3}
+                  width={cell.black.width + 6}
+                  height={cell.black.height + 6}
+                  fill={cell.black.color}
+                  opacity={cell.black.haloOpacity}
+                  rx={(cell.black.height + 6) / 2}
+                />
+              )}
+              <rect
+                x={cell.black.x}
+                y={cell.black.y}
+                width={cell.black.width}
+                height={cell.black.height}
+                fill={cell.black.color}
+                opacity={cell.black.opacity}
+                rx={cell.black.height / 2}
+              />
+            </g>
           )}
         </g>
       ))}
