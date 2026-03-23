@@ -1,23 +1,42 @@
-# OSX
-#
+.direnv
+.env
+.turbo
+node_modules
+*.DS_Store
+.pnpm-store
 .DS_Store
+dist/
+.data
+tsconfig.tsbuildinfo
+storybook-static
+.astro
+.vscode
+.env.*
+!.env.example
+!.env.*.example
+# OmniDev
+.omni/
+omni.local.toml
+# OmniDev Provider Files
+CLAUDE.md
+.claude/
+.mcp.json
+.cursor
 
 # Android/IntelliJ
-#
 build/
-.idea
-.gradle
+.idea/
+.gradle/
 local.properties
 *.iml
-.vscode
 
-# node.js
-#
-npm-debug.log
-yarn-error.log
-yarn-lock.json
-package-lock.json
+# Node/yarn/pnpm logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-node_modules
-template/js
-template/.eslintcache
+# Test/build outputs
+coverage/
+.eslintcache
+
+skills

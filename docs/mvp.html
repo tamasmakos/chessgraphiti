@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Training & Graph Analysis</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery (Required for Chessboard.js) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    
+    <!-- Custom Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f1f5f9;
+        }
+
+        /* Board Container */
+        #boardContainer {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            z-index: 1; 
+        }
+
+        #myBoard {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Piece Styling */
+        #myBoard img {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+            transform-origin: center bottom;
+            z-index: 20 !important;
+            position: relative;
+            border-radius: 50%;
+        }
+
+        /* SVG Overlay */
+        #graphOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10; 
+        }
+
+        /* Community Highlights */
+        .community-overlay {
+            position: absolute;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Notifications */
+        #notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        select, input[type="number"] {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header -->
+    <div class="w-full max-w-5xl flex flex-wrap justify-between items-center mb-6 gap-4">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-900/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Opening Trainer</h1>
+                <p class="text-xs text-indigo-400 font-mono">Graph-Based Analysis Engine</p>
+            </div>
+        </div>
+        
+        <div id="engineStatus" class="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700 backdrop-blur-sm">
+            <span class="w-2.5 h-2.5 block rounded-full bg-amber-500 animate-pulse" id="statusDot"></span>
+            <span id="statusText" class="text-sm font-medium text-slate-300">Initializing...</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Board Area (Left - 8 cols) -->
+        <div class="lg:col-span-8 space-y-4">
+            <div class="bg-slate-800 p-2 rounded-xl shadow-2xl border border-slate-700/50 relative">
+                <div id="boardContainer">
+                    <div id="myBoard"></div>
+                    
+                    <!-- Notification Toast -->
+                    <div id="notification" class="bg-red-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl font-bold shadow-xl border border-red-400 transform scale-90 transition-all">
+                        Wrong Move!
+                    </div>
+
+                    <svg id="graphOverlay" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrowhead-attack" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
+                                <path d="M0,0 L0,5 L5,2.5 z" fill="#ef4444" />
+                            </marker>
+                            <marker id="arrowhead-defense" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
+                                <path d="M0,0 L0,5 L5,2.5 z" fill="#3b82f6" />
+                            </marker>
+                            <marker id="arrowhead-hint" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                                <path d="M0,0 L0,6 L6,3 z" fill="#22c55e" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <!-- Game Over Modal -->
+                <div id="gameOverOverlay" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-50">
+                    <div class="bg-slate-800 p-8 rounded-2xl border border-slate-600 text-center shadow-2xl transform transition-all scale-100 max-w-sm w-full">
+                        <h3 class="text-3xl font-bold text-white mb-2" id="winnerText">Game Over</h3>
+                        <p class="text-slate-400 mb-6 font-medium" id="winnerReason">Checkmate</p>
+                        <button onclick="startAnalysis()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/30">
+                            Start Graph Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Eval Bar -->
+            <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden flex items-center relative">
+                <div class="absolute left-1/2 w-0.5 h-full bg-white/20 z-10"></div>
+                <div id="evalBar" class="h-full bg-white transition-all duration-700" style="width: 50%"></div>
+            </div>
+
+            <!-- Analysis Controls -->
+            <div id="analysisControls" class="hidden flex-col gap-4 p-5 bg-slate-800/80 rounded-xl border border-indigo-500/30 shadow-lg animate-fade-in">
+                <!-- Analysis specific controls here -->
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest">Post-Game Analysis</span>
+                    <button onclick="exitAnalysis()" class="text-xs text-slate-400 hover:text-white">Exit Analysis</button>
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <button onclick="navFirst()" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"><<</button>
+                    <button onclick="navPrev()" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"><</button>
+                    <span id="moveIndexDisplay" class="w-24 text-center font-mono font-bold text-white bg-slate-900 py-3 rounded-lg border border-slate-700">Start</span>
+                    <button onclick="navNext()" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors">></button>
+                    <button onclick="navLast()" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors">>></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar (Right - 4 cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- Training Settings Card -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                
+                <h3 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    Opening Trainer
+                </h3>
+                
+                <div class="space-y-4">
+                    <!-- Opening Select -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5">Select Opening Sequence</label>
+                        <select id="openingSelect" class="w-full bg-slate-900 border border-slate-600 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2.5">
+                            <option value="custom">Free Play (No Book)</option>
+                        </select>
+                    </div>
+
+                    <!-- Book Depth -->
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5 flex justify-between">
+                            <span>Book Moves to Enforce</span>
+                            <span class="text-indigo-400 font-mono" id="bookDepthVal">10</span>
+                        </label>
+                        <input type="number" id="bookDepthInput" value="10" min="1" max="25" class="w-full bg-slate-900 border-slate-600 text-sm">
+                    </div>
+
+                    <!-- Toggles -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center p-2 bg-slate-900/50 rounded-lg cursor-pointer border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
+                            <input type="checkbox" id="liveGraphToggle" class="accent-indigo-500 w-4 h-4 mr-2">
+                            <span class="text-xs text-slate-300">Live Graph</span>
+                        </label>
+                         <label class="flex items-center p-2 bg-slate-900/50 rounded-lg cursor-pointer border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
+                            <input type="checkbox" id="showHintsToggle" class="accent-indigo-500 w-4 h-4 mr-2">
+                            <span class="text-xs text-slate-300">Show Hints</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Settings -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl">
+                 <h3 class="text-sm font-semibold text-slate-300 mb-3">Visualization Logic</h3>
+                 <div class="space-y-3">
+                    <select id="centralitySelect" class="w-full text-xs">
+                        <option value="weighted">Size by Impact (Weighted Degree)</option>
+                        <option value="degree">Size by Activity (Degree)</option>
+                        <option value="betweenness">Size by Bridge Role (Betweenness)</option>
+                        <option value="none">Standard Size</option>
+                    </select>
+                 </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="playWhiteBtn" class="py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-500 transition-colors">Play White</button>
+                    <button id="playBlackBtn" class="py-2.5 bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-600 hover:text-white transition-colors">Play Black</button>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button id="undoBtn" class="py-2.5 btn-glass text-slate-300 rounded-lg text-sm font-medium transition-colors">Undo</button>
+                    <button id="resignBtn" class="py-2.5 border border-red-900/50 bg-red-900/10 text-red-400 rounded-lg text-sm font-medium hover:bg-red-900/20 transition-colors">Resign</button>
+                </div>
+                <button id="newGameBtn" class="w-full py-3 mt-2 bg-slate-100 text-slate-900 hover:bg-white rounded-lg text-sm font-bold shadow-lg transition-all">New Game</button>
+            </div>
+
+            <!-- PGN -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl flex-1 flex flex-col min-h-[150px]">
+                <h3 class="text-sm font-semibold text-slate-300 mb-3">Game Log</h3>
+                <div id="pgnDisplay" class="flex-1 bg-slate-900/50 rounded-xl p-4 text-xs font-mono text-slate-400 overflow-y-auto border border-slate-700/30 leading-relaxed">
+                    [New Game]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+
+    <script>
+        /**
+         * CHESS OPENING TRAINER & GRAPH ENGINE
+         * Single File Implementation
+         */
+
+        // --- Configuration & Databases ---
+        const PIECE_VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 4 }; 
+        const COMMUNITY_COLORS = [
+            'rgba(239, 68, 68, 0.5)', 'rgba(59, 130, 246, 0.5)', 
+            'rgba(16, 185, 129, 0.5)', 'rgba(245, 158, 11, 0.5)',
+            'rgba(139, 92, 246, 0.5)', 'rgba(236, 72, 153, 0.5)',
+            'rgba(14, 165, 233, 0.5)', 'rgba(20, 184, 166, 0.5)'
+        ];
+
+        const OPENINGS_WHITE = {
+            "ruy_lopez": { name: "Ruy Lopez", moves: ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "Nf6", "O-O"] },
+            "italian": { name: "Italian Game", moves: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "c3", "Nf6"] },
+            "london": { name: "London System", moves: ["d4", "d5", "Bf4", "Nf6", "e3", "c5", "c3"] },
+            "queens_gambit": { name: "Queen's Gambit", moves: ["d4", "d5", "c4", "e6", "Nc3", "Nf6"] },
+            "english": { name: "English Opening", moves: ["c4", "e5", "Nc3", "Nf6", "g3", "Bb4"] }
+        };
+
+        const OPENINGS_BLACK = {
+            "sicilian_najdorf": { name: "Sicilian (vs e4)", moves: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6"] },
+            "french": { name: "French Defense (vs e4)", moves: ["e4", "e6", "d4", "d5", "Nc3", "Nf6"] },
+            "caro_kann": { name: "Caro-Kann (vs e4)", moves: ["e4", "c6", "d4", "d5", "Nc3", "dxe4", "Nxe4", "Bf5"] },
+            "kings_indian": { name: "King's Indian (vs d4)", moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "e4", "d6"] }
+        };
+
+        const ALL_OPENINGS = { ...OPENINGS_WHITE, ...OPENINGS_BLACK };
+
+        // --- Global State ---
+        let board = null;
+        let game = new Chess();
+        let stockfish = null;
+        let playerColor = 'w';
+        let isEngineThinking = false;
+        
+        // Training State
+        let selectedOpening = "custom";
+        let bookDepth = 10;
+        
+        // Analysis State
+        let isAnalysisMode = false;
+        let analysisIndex = 0;
+        let gameHistory = [];
+        let graphData = { nodes: [], edges: [] };
+
+        // Elements Cache (Populated in Init)
+        let els = {};
+
+        // --- Initialization ---
+        $(document).ready(function() {
+            // 1. Populate Elements Cache safely
+            els = {
+                statusText: document.getElementById('statusText'),
+                statusDot: document.getElementById('statusDot'),
+                pgnDisplay: document.getElementById('pgnDisplay'),
+                evalBar: document.getElementById('evalBar'),
+                notification: document.getElementById('notification'),
+                overlay: document.getElementById('gameOverOverlay'),
+                analysisControls: document.getElementById('analysisControls'),
+                graphOverlay: document.getElementById('graphOverlay'),
+                nodeCount: document.getElementById('nodeCount'),
+                edgeCount: document.getElementById('edgeCount'),
+                moveIndexDisplay: document.getElementById('moveIndexDisplay'),
+                centralitySelect: document.getElementById('centralitySelect'),
+                openingSelect: document.getElementById('openingSelect'),
+                bookDepthInput: document.getElementById('bookDepthInput'),
+                liveGraphToggle: document.getElementById('liveGraphToggle'),
+                showHintsToggle: document.getElementById('showHintsToggle')
+            };
+
+            updateOpeningDropdown('b'); // Default: Player White -> Engine Black
+
+            // 2. Init Board with Error Handling
+            try {
+                board = Chessboard('myBoard', {
+                    draggable: true,
+                    position: 'start',
+                    onDragStart: onDragStart,
+                    onDrop: onDrop,
+                    onSnapEnd: onSnapEnd,
+                    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+                });
+            } catch (e) {
+                console.error("Board init error:", e);
+                els.statusText.innerText = "Board Error (Check Console)";
+            }
+
+            $(window).resize(() => {
+                if (board) board.resize();
+                drawGraphOverlay(); // Draw on resize
+            });
+
+            initStockfish();
+            updateGameUI();
+            
+            // Attach Event Listeners
+            attachListeners();
+        });
+
+        function updateOpeningDropdown(engineColor) {
+            if (!els.openingSelect) return;
+            els.openingSelect.innerHTML = '<option value="custom">Free Play (No Book)</option>';
+            
+            const playerC = engineColor === 'w' ? 'b' : 'w'; 
+            const relevantDB = playerC === 'w' ? OPENINGS_WHITE : OPENINGS_BLACK;
+
+            Object.keys(relevantDB).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.innerText = relevantDB[key].name;
+                els.openingSelect.appendChild(opt);
+            });
+            selectedOpening = 'custom';
+        }
+
+        function showNotification(msg, isError = true) {
+            if (!els.notification) return;
+            els.notification.innerText = msg;
+            els.notification.className = isError 
+                ? "bg-red-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl font-bold shadow-xl border border-red-400 transform scale-100 opacity-100 transition-all absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+                : "bg-green-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl font-bold shadow-xl border border-green-400 transform scale-100 opacity-100 transition-all absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none";
+            
+            setTimeout(() => {
+                els.notification.classList.add('opacity-0', 'scale-90');
+            }, 2000);
+        }
+
+        // --- Stockfish Engine ---
+        function initStockfish() {
+            const stockfishUrl = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.0/stockfish.js';
+            fetch(stockfishUrl).then(r => r.text()).then(code => {
+                const b = new Blob([code], {type: 'text/javascript'});
+                stockfish = new Worker(URL.createObjectURL(b));
+                stockfish.postMessage('uci');
+                stockfish.onmessage = handleEngineMessage;
+                if(els.statusText) els.statusText.innerText = "Engine Ready";
+                if(els.statusDot) els.statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+            });
+        }
+
+        function handleEngineMessage(e) {
+            const msg = e.data;
+            if (msg.startsWith('bestmove') && !isAnalysisMode) {
+                const move = msg.split(' ')[1];
+                if (move && move !== '(none)') {
+                    game.move({ from: move.substring(0,2), to: move.substring(2,4), promotion: 'q' });
+                    board.position(game.fen());
+                    updateGameUI();
+                    
+                    if (els.liveGraphToggle && els.liveGraphToggle.checked) {
+                        generateGraph(game);
+                        drawGraphOverlay();
+                    }
+                }
+                isEngineThinking = false;
+                if(els.statusText) els.statusText.innerText = "Your Turn";
+                if(els.statusDot) els.statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+            }
+            if (msg.startsWith('info') && msg.includes('score')) {
+                updateEvalFromEngine(msg);
+            }
+        }
+
+        function updateEvalFromEngine(msg) {
+            if (!els.evalBar) return;
+            const parts = msg.split(' ');
+            const scoreIdx = parts.indexOf('score');
+            let score = 0;
+            if (parts[scoreIdx + 1] === 'mate') {
+                const moves = parseInt(parts[scoreIdx + 2]);
+                score = moves > 0 ? 10000 : -10000;
+            } else {
+                let cp = parseInt(parts[scoreIdx + 2]);
+                const turn = isAnalysisMode ? (analysisIndex % 2 === 0 ? 'w' : 'b') : game.turn();
+                score = (turn === 'w') ? cp : -cp;
+            }
+            const clamped = Math.max(-500, Math.min(500, score));
+            const pct = 50 + (clamped / 10);
+            els.evalBar.style.width = `${pct}%`;
+        }
+
+        // --- Game Logic ---
+        function onDragStart(source, piece) {
+            if (isAnalysisMode || game.game_over() || isEngineThinking) return false;
+            if ((playerColor === 'w' && piece.search(/^b/) !== -1) ||
+                (playerColor === 'b' && piece.search(/^w/) !== -1)) return false;
+        }
+
+        function onDrop(source, target) {
+            const move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+
+            // Opening Enforcement
+            if (selectedOpening !== 'custom' && game.history().length <= bookDepth) {
+                if (ALL_OPENINGS[selectedOpening]) {
+                    const bookMoves = ALL_OPENINGS[selectedOpening].moves;
+                    const currentMoveIndex = game.history().length - 1;
+                    
+                    if (currentMoveIndex < bookMoves.length) {
+                        const playedSan = move.san;
+                        const requiredSan = bookMoves[currentMoveIndex];
+                        
+                        if (playedSan !== requiredSan) {
+                            game.undo();
+                            showNotification(`Wrong Move! Book says: ${requiredSan}`, true);
+                            return 'snapback';
+                        }
+                    }
+                }
+            }
+
+            updateGameUI();
+            
+            if (els.liveGraphToggle && els.liveGraphToggle.checked) {
+                generateGraph(game);
+                drawGraphOverlay();
+            } else {
+                clearGraphOverlay();
+            }
+
+            if (!game.game_over()) makeEngineMove();
+        }
+
+        function onSnapEnd() {
+            board.position(game.fen());
+        }
+
+        function makeEngineMove() {
+            if (!stockfish) return;
+            isEngineThinking = true;
+
+            // Check Book for Engine
+            if (selectedOpening !== 'custom' && game.history().length < bookDepth) {
+                const book = ALL_OPENINGS[selectedOpening].moves;
+                const moveIdx = game.history().length;
+                
+                if (moveIdx < book.length) {
+                    const nextMove = book[moveIdx];
+                    els.statusText.innerText = `Book: ${nextMove}`;
+                    els.statusDot.className = "w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse";
+                    
+                    setTimeout(() => {
+                        game.move(nextMove);
+                        board.position(game.fen());
+                        isEngineThinking = false;
+                        updateGameUI();
+                        if (els.liveGraphToggle && els.liveGraphToggle.checked) { generateGraph(game); drawGraphOverlay(); }
+                    }, 600);
+                    return;
+                }
+            }
+
+            els.statusText.innerText = "Thinking...";
+            els.statusDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+            stockfish.postMessage(`position fen ${game.fen()}`);
+            stockfish.postMessage(`go depth 10`);
+        }
+
+        function updateGameUI() {
+            if(els.pgnDisplay) els.pgnDisplay.innerText = game.pgn() || '[New Game]';
+            
+            if (game.game_over()) {
+                let winner = 'Draw';
+                let reason = 'Stalemate';
+                if (game.in_checkmate()) {
+                    winner = game.turn() === 'w' ? 'Black' : 'White';
+                    reason = 'Checkmate';
+                }
+                document.getElementById('winnerText').innerText = winner === 'Draw' ? 'Draw' : `${winner} Wins`;
+                document.getElementById('winnerReason').innerText = reason;
+                if(els.overlay) els.overlay.classList.remove('hidden');
+            }
+        }
+
+        // --- Analysis ---
+        window.startAnalysis = function() {
+            isAnalysisMode = true;
+            if(els.overlay) els.overlay.classList.add('hidden');
+            if(els.analysisControls) {
+                els.analysisControls.classList.remove('hidden');
+                els.analysisControls.classList.add('flex');
+            }
+            gameHistory = game.history({ verbose: true });
+            analysisIndex = gameHistory.length;
+            loadAnalysisPosition();
+        };
+        
+        window.exitAnalysis = function() {
+            isAnalysisMode = false;
+            if(els.analysisControls) {
+                els.analysisControls.classList.add('hidden');
+                els.analysisControls.classList.remove('flex');
+            }
+            board.position(game.fen());
+            clearGraphOverlay();
+        };
+
+        function loadAnalysisPosition() {
+            const tempGame = new Chess();
+            for (let i = 0; i < analysisIndex; i++) {
+                tempGame.move(gameHistory[i]);
+            }
+            const fen = tempGame.fen();
+            board.position(fen, false);
+            els.moveIndexDisplay.innerText = `${analysisIndex} / ${gameHistory.length}`;
+            generateGraph(tempGame);
+            drawGraphOverlay();
+        }
+
+        function generateGraph(gameInstance) {
+            graphData = { nodes: [], edges: [] };
+            const squares = gameInstance.SQUARES;
+            const pieces = [];
+
+            squares.forEach(sq => {
+                const p = gameInstance.get(sq);
+                if (p) pieces.push({ square: sq, type: p.type, color: p.color });
+            });
+            graphData.nodes = pieces.map(p => ({ 
+                id: p.square, ...p, community: -1, centrality: 0 
+            }));
+
+            pieces.forEach(actor => {
+                const rays = getAttacks(actor.square, gameInstance);
+                rays.forEach(targetSq => {
+                    const targetPiece = gameInstance.get(targetSq);
+                    if (targetPiece) {
+                        const isEnemy = targetPiece.color !== actor.color;
+                        let weight = 0;
+                        let type = '';
+                        if (isEnemy) {
+                            type = 'attack';
+                            const defenders = getDefenders(targetSq, gameInstance, targetPiece.color);
+                            const defenderSum = defenders.reduce((sum, d) => sum + PIECE_VALUES[d.type], 0);
+                            weight = PIECE_VALUES[actor.type] + PIECE_VALUES[targetPiece.type] - (defenderSum * 0.5);
+                        } else {
+                            type = 'defense';
+                            weight = PIECE_VALUES[targetPiece.type] + (PIECE_VALUES[actor.type] * 0.2); 
+                        }
+                        let visualWeight = Math.max(1, weight); 
+                        graphData.edges.push({
+                            source: actor.square,
+                            target: targetSq,
+                            type: type,
+                            weight: visualWeight,
+                            color: type === 'attack' ? '#ef4444' : '#3b82f6'
+                        });
+                    }
+                });
+            });
+
+            runCommunityDetection();
+            calculateCentrality(els.centralitySelect ? els.centralitySelect.value : 'weighted');
+        }
+
+        function calculateCentrality(measure) {
+            const N = graphData.nodes.length;
+            if (N === 0) return;
+            graphData.nodes.forEach(n => n.centrality = 0);
+            if (measure === 'none') return;
+
+            if (measure === 'degree') {
+                graphData.nodes.forEach(node => {
+                    const outDeg = graphData.edges.filter(e => e.source === node.id).length;
+                    const inDeg = graphData.edges.filter(e => e.target === node.id).length;
+                    node.centrality = outDeg + inDeg;
+                });
+            } else if (measure === 'weighted') {
+                graphData.nodes.forEach(node => {
+                    const outW = graphData.edges.filter(e => e.source === node.id).reduce((s, e) => s + e.weight, 0);
+                    const inW = graphData.edges.filter(e => e.target === node.id).reduce((s, e) => s + e.weight, 0);
+                    node.centrality = outW + inW;
+                });
+            } else if (measure === 'betweenness' || measure === 'closeness') {
+                const dist = {};
+                const ids = graphData.nodes.map(n => n.id);
+                ids.forEach(u => { dist[u] = {}; ids.forEach(v => dist[u][v] = (u === v ? 0 : Infinity)); });
+                graphData.edges.forEach(e => { dist[e.source][e.target] = 1; });
+
+                for (let k of ids) for (let i of ids) for (let j of ids) 
+                    if (dist[i][k] + dist[k][j] < dist[i][j]) dist[i][j] = dist[i][k] + dist[k][j];
+
+                if (measure === 'closeness') {
+                    graphData.nodes.forEach(node => {
+                        let sumDist = 0, reachable = 0;
+                        ids.forEach(target => { if (node.id !== target && dist[node.id][target] !== Infinity) { sumDist += dist[node.id][target]; reachable++; } });
+                        node.centrality = reachable > 0 ? (reachable / sumDist) : 0;
+                    });
+                } else if (measure === 'betweenness') {
+                     graphData.nodes.forEach(n => n.centrality = 0);
+                     for(let s of ids) for(let t of ids) {
+                         if(s === t || dist[s][t] === Infinity) continue;
+                         for(let k of ids) if(k !== s && k !== t && dist[s][k] + dist[k][t] === dist[s][t]) graphData.nodes.find(n => n.id === k).centrality += 1;
+                     }
+                }
+            }
+        }
+
+        // --- Utils ---
+        function getAttacks(sq, gameInst) {
+            const piece = gameInst.get(sq);
+            if(!piece) return [];
+            const file = sq.charCodeAt(0) - 97;
+            const rank = parseInt(sq[1]) - 1;
+            const attacks = [];
+            const checkDir = (f, r) => {
+                if (f >= 0 && f < 8 && r >= 0 && r < 8) {
+                    const target = String.fromCharCode(f + 97) + (r + 1);
+                    attacks.push(target);
+                    return gameInst.get(target) !== null;
+                }
+                return true; 
+            };
+            const dirs = {
+                'r': [[0,1], [0,-1], [1,0], [-1,0]],
+                'b': [[1,1], [1,-1], [-1,1], [-1,-1]],
+                'q': [[0,1], [0,-1], [1,0], [-1,0], [1,1], [1,-1], [-1,1], [-1,-1]],
+                'n': [[1,2], [1,-2], [-1,2], [-1,-2], [2,1], [2,-1], [-2,1], [-2,-1]],
+                'k': [[0,1], [0,-1], [1,0], [-1,0], [1,1], [1,-1], [-1,1], [-1,-1]]
+            };
+            if (piece.type === 'p') {
+                const dir = piece.color === 'w' ? 1 : -1;
+                if (file-1 >= 0) checkDir(file-1, rank+dir);
+                if (file+1 <= 7) checkDir(file+1, rank+dir);
+            } else if (['n', 'k'].includes(piece.type)) {
+                dirs[piece.type].forEach(([df, dr]) => checkDir(file+df, rank+dr));
+            } else {
+                dirs[piece.type].forEach(([df, dr]) => { for (let i = 1; i < 8; i++) { if (checkDir(file + (df*i), rank + (dr*i))) break; } });
+            }
+            return attacks;
+        }
+
+        function getDefenders(targetSq, gameInst, defenseColor) {
+            const defenders = [];
+            gameInst.SQUARES.forEach(sq => {
+                const p = gameInst.get(sq);
+                if (p && p.color === defenseColor) {
+                    const attacks = getAttacks(sq, gameInst);
+                    if (attacks.includes(targetSq)) defenders.push(p);
+                }
+            });
+            return defenders;
+        }
+
+        function runCommunityDetection() {
+            graphData.nodes.forEach((n, i) => n.community = i);
+            let changed = true, iterations = 0;
+            while (changed && iterations < 8) {
+                changed = false; iterations++;
+                const shuffled = [...graphData.nodes].sort(() => Math.random() - 0.5);
+                shuffled.forEach(node => {
+                    const neighborLabels = {};
+                    graphData.edges.forEach(e => {
+                        let neighborSq = null, weight = e.weight;
+                        if (e.source === node.id) neighborSq = e.target;
+                        else if (e.target === node.id) neighborSq = e.source;
+                        if (neighborSq) {
+                            const neighbor = graphData.nodes.find(n => n.id === neighborSq);
+                            if (neighbor) {
+                                if (!neighborLabels[neighbor.community]) neighborLabels[neighbor.community] = 0;
+                                neighborLabels[neighbor.community] += weight;
+                            }
+                        }
+                    });
+                    let bestComm = node.community, maxWt = -1;
+                    for (const [comm, wt] of Object.entries(neighborLabels)) {
+                        if (wt > maxWt) { maxWt = wt; bestComm = parseInt(comm); }
+                    }
+                    if (bestComm !== node.community) { node.community = bestComm; changed = true; }
+                });
+            }
+            const uniqueComms = [...new Set(graphData.nodes.map(n => n.community))];
+            graphData.nodes.forEach(n => { n.colorIndex = uniqueComms.indexOf(n.community) % COMMUNITY_COLORS.length; });
+        }
+
+        function clearGraphOverlay() {
+            if(!els.graphOverlay) return;
+            $('#myBoard img').css({ 'transform': 'scale(1)', 'background-color': 'transparent' });
+            // Safety check for defs
+            const defs = els.graphOverlay.querySelector('defs');
+            if(defs) els.graphOverlay.innerHTML = defs.outerHTML;
+            else els.graphOverlay.innerHTML = '';
+        }
+
+        function drawGraphOverlay() {
+            clearGraphOverlay();
+            
+            // Check container width safety
+            const container = document.getElementById('boardContainer');
+            if (!container || container.clientWidth === 0) return;
+
+            // Hints
+            if (els.showHintsToggle.checked && selectedOpening !== 'custom' && !isAnalysisMode && !game.game_over()) {
+                const bookMoves = ALL_OPENINGS[selectedOpening].moves;
+                const currentMoveIndex = game.history().length;
+                if (currentMoveIndex < bookMoves.length && game.turn() === playerColor) {
+                    const nextSan = bookMoves[currentMoveIndex];
+                    const tmp = new Chess(game.fen());
+                    const moveObj = tmp.move(nextSan);
+                    if (moveObj) {
+                        drawArrow(moveObj.from, moveObj.to, '#22c55e', 'url(#arrowhead-hint)', 0.8, 6);
+                    }
+                }
+            }
+
+            // Draw Graph
+            let minScore = Infinity, maxScore = -Infinity;
+            graphData.nodes.forEach(n => {
+                if (n.centrality < minScore) minScore = n.centrality;
+                if (n.centrality > maxScore) maxScore = n.centrality;
+            });
+            const range = maxScore - minScore;
+            
+            graphData.nodes.forEach(node => {
+                const $img = $(`.square-${node.id} img`);
+                if ($img.length) {
+                    let scale = 1;
+                    if (els.centralitySelect.value !== 'none' && range > 0) {
+                        const norm = (node.centrality - minScore) / range; 
+                        scale = 0.75 + (norm * 0.5);
+                    }
+                    $img.css({ 'transform': `scale(${scale})`, 'background-color': COMMUNITY_COLORS[node.colorIndex], 'z-index': Math.floor(scale * 50) + 20 });
+                }
+            });
+
+            graphData.edges.forEach(edge => {
+                const marker = edge.type === 'attack' ? 'url(#arrowhead-attack)' : 'url(#arrowhead-defense)';
+                const opacity = Math.min(1, 0.2 + (edge.weight * 0.08));
+                const width = Math.min(5, 1 + (edge.weight * 0.4));
+                drawArrow(edge.source, edge.target, edge.color, marker, opacity, width);
+            });
+        }
+
+        function drawArrow(source, target, color, marker, opacity, width) {
+            const boardRect = document.getElementById('boardContainer').getBoundingClientRect();
+            const sqSize = boardRect.width / 8;
+            
+            const sFile = source.charCodeAt(0) - 97;
+            const sRank = parseInt(source[1]) - 1;
+            const tFile = target.charCodeAt(0) - 97;
+            const tRank = parseInt(target[1]) - 1;
+            
+            const isWhiteOrient = board.orientation() === 'white';
+            const x1 = (isWhiteOrient ? sFile : (7 - sFile)) * sqSize + (sqSize/2);
+            const y1 = (isWhiteOrient ? (7 - sRank) : sRank) * sqSize + (sqSize/2);
+            const x2 = (isWhiteOrient ? tFile : (7 - tFile)) * sqSize + (sqSize/2);
+            const y2 = (isWhiteOrient ? (7 - tRank) : tRank) * sqSize + (sqSize/2);
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', width);
+            line.setAttribute('opacity', opacity);
+            line.setAttribute('marker-end', marker);
+            els.graphOverlay.appendChild(line);
+        }
+
+        function attachListeners() {
+            if(els.openingSelect) els.openingSelect.addEventListener('change', (e) => {
+                selectedOpening = e.target.value;
+                if (game.history().length === 0 && playerColor === 'b') makeEngineMove();
+            });
+
+            if(els.bookDepthInput) els.bookDepthInput.addEventListener('change', (e) => {
+                bookDepth = parseInt(e.target.value);
+                document.getElementById('bookDepthVal').innerText = bookDepth;
+            });
+            
+            if(els.centralitySelect) els.centralitySelect.addEventListener('change', () => { if(isAnalysisMode || els.liveGraphToggle.checked) drawGraphOverlay(); });
+            
+            if(els.liveGraphToggle) els.liveGraphToggle.addEventListener('change', () => { 
+                if(els.liveGraphToggle.checked) { generateGraph(game); drawGraphOverlay(); } 
+                else clearGraphOverlay(); 
+            });
+            
+            if(els.showHintsToggle) els.showHintsToggle.addEventListener('change', () => { 
+                if(!els.liveGraphToggle.checked) { clearGraphOverlay(); drawGraphOverlay(); } else { drawGraphOverlay(); }
+            });
+
+            document.getElementById('resignBtn').addEventListener('click', () => {
+                 if (!game.game_over()) { 
+                     document.getElementById('winnerText').innerText = playerColor === 'w' ? 'Black Wins' : 'White Wins';
+                     document.getElementById('winnerReason').innerText = 'Resignation';
+                     if(els.overlay) els.overlay.classList.remove('hidden');
+                 }
+            });
+            
+            document.getElementById('newGameBtn').addEventListener('click', () => {
+                game.reset(); board.position('start'); isAnalysisMode = false;
+                if(els.analysisControls) els.analysisControls.classList.add('hidden');
+                clearGraphOverlay(); updateGameUI();
+                if(playerColor === 'b') makeEngineMove();
+            });
+
+            document.getElementById('undoBtn').addEventListener('click', () => {
+                if(isAnalysisMode) return;
+                game.undo(); game.undo(); board.position(game.fen()); updateGameUI();
+            });
+
+            document.getElementById('playWhiteBtn').addEventListener('click', () => {
+                playerColor='w'; board.orientation('white'); updateOpeningDropdown('b'); document.getElementById('newGameBtn').click();
+            });
+            document.getElementById('playBlackBtn').addEventListener('click', () => {
+                playerColor='b'; board.orientation('black'); updateOpeningDropdown('w'); document.getElementById('newGameBtn').click();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (!isAnalysisMode) return;
+                if (e.key === 'ArrowLeft') navPrev();
+                if (e.key === 'ArrowRight') navNext();
+            });
+        }
+    </script>
+</body>
+</html>

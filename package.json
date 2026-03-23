@@ -1,32 +1,37 @@
 {
-  "name": "@thecodingmachine/react-native-boilerplate",
-  "version": "4.0.1",
-  "description": "TheCodingMachine React Native Boilerplate",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/thecodingmachine/react-native-boilerplate.git"
-  },
-  "author": "TheCodingMachine Lyon <lyon@thecodingmachine.com>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/thecodingmachine/react-native-boilerplate/issues"
-  },
-  "homepage": "https://thecodingmachine.github.io/react-native-boilerplate/",
-  "main": "post-init.script.js",
+  "name": "monorepo-example",
+  "version": "1.0.0",
+  "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo run --ui tui --concurrency=15 dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check",
+    "lint:check": "turbo run lint:check",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "prepare": "husky"
   },
-  "keywords": [
-    "react",
-    "native",
-    "boilerplate",
-    "thecodingmachine",
-    "react-native",
-    "starter-kit"
-  ],
+  "keywords": [],
+  "engine": {
+    "node": ">24.0.0"
+  },
+  "packageManager": "pnpm@10.24.0",
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "9.1.7",
+    "kysely-ctl": "0.19.0",
+    "turbo": "2.6.3",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
   "dependencies": {
-    "kleur": "^4.1.4",
-    "prompts": "^2.4.1"
-  },
-  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
+    "kysely": "^0.28.8",
+    "kysely-codegen": "^0.19.0"
+  }
 }
