@@ -35,6 +35,7 @@ export function CommunityLineageGraph({
   currentIndex,
   onIndexChange,
   height = 200,
+  analysisGraphSnapshots,
 }: CommunityLineageGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
@@ -54,7 +55,33 @@ export function CommunityLineageGraph({
   const { steps, nodes, links } = useMemo(() => {
     if (!analysis || !analysis.stableColorByStep) return { steps: [], nodes: [], links: [] };
     const numSteps = analysis.stableColorByStep.length;
-    if (numSteps === 0) return { steps: [], nodes: [], links: [] };
+    // Compute community importance per step from graph snapshots
+    const importanceMap = new Map<number, Map<number, number>>();
+    if (analysisGraphSnapshots) {
+      for (let si = 0; si < numSteps; si++) {
+        const snap = analysisGraphSnapshots[si] ?? undefined;
+        const stepImp = new Map<number, number>();
+        importanceMap.set(si, stepImp);
+        if (!snap) continue;
+        const byCommunity = new Map<number, number[]>();
+        for (const n of snap.nodes) {
+          const arr = byCommunity.get(n.communityId) ?? [];
+          arr.push((n.centralityWeighted + n.centralityDegree + n.centralityBetweenness + n.centralityCloseness + n.centralityPageRank) / 5);
+          byCommunity.set(n.communityId, arr);
+        }
+        for (const [cid, scores] of byCommunity) {
+          stepImp.set(cid, scores.reduce((s, v) => s + v, 0) / scores.length);
+        }
+      }
+    }
+
+    let globalMaxImp = 0;
+    for (const stepMap of importanceMap.values()) {
+      for (const v of stepMap.values()) {
+        if (v > globalMaxImp) globalMaxImp = v;
+      }
+    }
+    if (globalMaxImp < 0.0001) globalMaxImp = 1;    if (numSteps === 0) return { steps: [], nodes: [], links: [] };
 
     const chartWidth = width - PADDING.left - PADDING.right;
     const chartHeight = height - PADDING.top - PADDING.bottom;
@@ -103,6 +130,8 @@ export function CommunityLineageGraph({
             const colorIdx = stepMap[cid]!;
             const color = COMMUNITY_COLORS[colorIdx % COMMUNITY_COLORS.length];
             
+            const rawImp = importanceMap.get(i)?.get(cid) ?? 0;
+            const importance = rawImp / globalMaxImp;
             const node = {
                 id: cid,
                 step: i,
@@ -112,7 +141,8 @@ export function CommunityLineageGraph({
                 w: NODE_WIDTH,
                 color,
                 colorIdx,
-                weight
+                weight,
+                importance,
             };
             nodes.push(node);
             nodeGeometry[i]!.set(cid, node);
@@ -155,12 +185,14 @@ export function CommunityLineageGraph({
             const x0 = source.x + NODE_WIDTH;
             const x1 = target.x;
 
+            const linkImp = ((source.importance ?? 0) + (target.importance ?? 0)) / 2;
             links.push({
                 id: `link-${prevIdx}-${link.fromCommunityId}-${link.toCommunityId}`,
                 x0, y0, x1, y1,
                 width: Math.max(1, (hSource + hTarget) / 2),
                 color: source.color,
-                opacity: FLOW_OPACITY
+                opacity: FLOW_OPACITY * (0.5 + linkImp * 0.5),
+                importance: linkImp,
             });
 
             sourceOffset.set(link.fromCommunityId, (sourceOffset.get(link.fromCommunityId) || 0) + hSource);
@@ -169,7 +201,7 @@ export function CommunityLineageGraph({
     }
 
     return { steps: new Array(numSteps).fill(0).map((_, i) => i), nodes, links };
-  }, [analysis, width, height]);
+  }, [analysis, width, height, analysisGraphSnapshots]);
 
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
@@ -242,9 +274,14 @@ export function CommunityLineageGraph({
                   height={node.h}
                   fill={node.color}
                   rx={2}
-                  className={`transition-all duration-200 ${node.step === currentIndex ? 'stroke-white stroke-1 z-20' : 'opacity-80 hover:opacity-100'}`}
+                  className={`transition-all duration-200 ${node.step === currentIndex ? 'stroke-white stroke-1 z-20' : 'hover:opacity-100'}`}
                   style={{
-                    filter: node.step === currentIndex ? `drop-shadow(0 0 6px ${node.color})` : 'none'
+                    fillOpacity: node.importance != null ? 0.3 + node.importance * 0.7 : 0.8,
+                    filter: node.step === currentIndex
+                      ? `drop-shadow(0 0 ${4 + (node.importance ?? 0) * 6}px ${node.color})`
+                      : node.importance != null && node.importance > 0.6
+                        ? `drop-shadow(0 0 3px ${node.color}88)`
+                        : 'none',
                   }}
                 />
               </g>

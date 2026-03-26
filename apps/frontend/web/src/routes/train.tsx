@@ -17,6 +17,7 @@ import {
   CommunityLineageGraph,
   DashboardHeader,
 } from "#components/chess/index";
+import type { EdgeFilter } from "#components/chess/GraphOverlay";
 import { useGameStore } from "#stores/game-store";
 import { useStockfish } from "#hooks/use-stockfish";
 import { useApi } from "#lib/api";
@@ -30,9 +31,10 @@ export const Route = createFileRoute("/train")({
 function TrainPage() {
   const { isReady: engineReady, error: engineError } = useStockfish();
 
-  const [settingsOpen, setSettingsOpen] = useState(true);
   const [visionMode, setVisionMode] = useState<"graph" | "classic">("graph");
+  const [edgeFilter, setEdgeFilter] = useState<EdgeFilter>("both");
   const [leftWidthPct, setLeftWidthPct] = useState(50);
+  const [highlightSquares, setHighlightSquares] = useState<Set<string>>(new Set());
 
   const fen = useGameStore((s) => s.fen);
   const pgn = useGameStore((s) => s.pgn);
@@ -65,6 +67,14 @@ function TrainPage() {
   const setEngineStrength = useGameStore((s) => s.setEngineStrength);
   const setCentralityMetric = useGameStore((s) => s.setCentralityMetric);
 
+  const handleBoardSync = useCallback(
+    (metric: Parameters<typeof setCentralityMetric>[0], squares: Set<string>) => {
+      setCentralityMetric(metric);
+      setHighlightSquares(squares);
+    },
+    [setCentralityMetric],
+  );
+
   const orientation = playerColor === "w" ? "white" : "black";
   const isAnalysis = gameStatus === "analysis";
   const isGameOver = gameStatus === "gameover";
@@ -86,9 +96,7 @@ function TrainPage() {
   const activeLineage = isAnalysis ? analysisLineage : liveLineage;
   const activeIndex = isAnalysis ? analysisIndex : Math.max(0, liveGraphSnapshots.length - 1);
 
-  useEffect(() => {
-    if (isPlaying) setSettingsOpen(false);
-  }, [isPlaying]);
+
 
   const api = useApi();
   const exportReelMutation = useMutation(
@@ -121,71 +129,28 @@ function TrainPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [isAnalysis, navigateAnalysis]);
 
+  const edgeFilterActiveClass: Record<EdgeFilter, string> = {
+    attack: "bg-rose-900/40 text-rose-400 border-rose-800/60",
+    defense: "bg-sky-900/40 text-sky-400 border-sky-800/60",
+    both: "bg-slate-700 text-indigo-300 border-slate-600",
+  };
+  const edgeFilterLabel: Record<EdgeFilter, string> = {
+    attack: "⚔",
+    defense: "🛡",
+    both: "⛵",
+  };
+
   return (
     <div className="h-screen max-h-screen flex flex-col overflow-hidden bg-slate-950 selection:bg-indigo-500/30">
 
       {/* ── Header bar ── */}
       <DashboardHeader
-        settingsOpen={settingsOpen}
-        onToggleSettings={() => setSettingsOpen((v) => !v)}
         engineReady={engineReady}
         isThinking={isEngineThinking}
         engineError={engineError ?? null}
+        visionMode={visionMode}
+        onSetVisionMode={setVisionMode}
       />
-
-      {/* ── Settings drawer ── */}
-      {settingsOpen && (
-        <div className="flex-shrink-0 bg-slate-900/60 border-b border-slate-800/60 backdrop-blur-md">
-          <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-5">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Play as</span>
-              {(["w", "b"] as const).map((c) => (
-                <button key={c}
-                  onClick={() => { setPlayerColor(c); newGame(); }}
-                  className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-all ${
-                    playerColor === c
-                      ? c === "w" ? "bg-white text-slate-900 border-white" : "bg-slate-800 text-white border-slate-500"
-                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                  }`}
-                >
-                  {c === "w" ? "White" : "Black"}
-                </button>
-              ))}
-            </div>
-            <div className="h-5 w-px bg-slate-800" />
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Depth</span>
-              <input type="range" min={0} max={20} step={1} value={engineStrength}
-                onChange={(e) => setEngineStrength(Number(e.target.value))}
-                className="w-24 accent-indigo-500 h-1 bg-slate-800 rounded-lg cursor-pointer" />
-              <span className="text-[10px] font-mono text-indigo-400 w-4 text-right">{engineStrength}</span>
-            </div>
-            <div className="h-5 w-px bg-slate-800" />
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1">Vision</span>
-              <VisionControls
-                centralityMetric={centralityMetric}
-                onSetMetric={setCentralityMetric}
-                visionMode={visionMode}
-                onSetVisionMode={setVisionMode}
-              />
-            </div>
-            <div className="h-5 w-px bg-slate-800" />
-            <div className="flex items-center gap-2">
-              {(isPlaying || isGameOver) && (
-                <>
-                  <button onClick={undo} className="px-3 py-1.5 text-[10px] font-black text-slate-400 rounded-lg border border-slate-700 hover:text-slate-200 transition-all">Undo</button>
-                  <button onClick={resign} className="px-3 py-1.5 text-[10px] font-black text-rose-400 rounded-lg border border-rose-900/50 bg-rose-900/10 hover:bg-rose-900/20 transition-all">Resign</button>
-                </>
-              )}
-              <button onClick={() => { setPlayerColor(playerColor); newGame(); }}
-                className="px-3 py-1.5 text-[10px] font-black text-slate-200 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all">
-                New Game
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Main 2-column layout ── */}
       <div 
@@ -197,6 +162,67 @@ function TrainPage() {
         <div
           className="flex flex-col flex-shrink-0 p-3 lg:pr-1 gap-2 w-full lg:w-[var(--left-width)]"
         >
+          {/* ── Board toolbar ── */}
+          <div className="flex-shrink-0 flex flex-wrap items-center gap-2.5 px-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Play as</span>
+              {(["w", "b"] as const).map((c) => (
+                <button key={c}
+                  onClick={() => { setPlayerColor(c); newGame(); }}
+                  className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                    playerColor === c
+                      ? c === "w" ? "bg-white text-slate-900 border-white" : "bg-slate-800 text-white border-slate-500"
+                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                  }`}
+                >
+                  {c === "w" ? "White" : "Black"}
+                </button>
+              ))}
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Depth</span>
+              <input type="range" min={0} max={20} step={1} value={engineStrength}
+                onChange={(e) => setEngineStrength(Number(e.target.value))}
+                className="w-20 accent-indigo-500 h-1 bg-slate-800 rounded-lg cursor-pointer" />
+              <span className="text-[10px] font-mono text-indigo-400 w-4 text-right">{engineStrength}</span>
+            </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-1.5">
+              {(isPlaying || isGameOver) && (
+                <>
+                  <button onClick={undo} className="px-2.5 py-1 text-[10px] font-black text-slate-400 rounded-lg border border-slate-700 hover:text-slate-200 transition-all">Undo</button>
+                  <button onClick={resign} className="px-2.5 py-1 text-[10px] font-black text-rose-400 rounded-lg border border-rose-900/50 bg-rose-900/10 hover:bg-rose-900/20 transition-all">Resign</button>
+                </>
+              )}
+              <button onClick={() => { setPlayerColor(playerColor); newGame(); }}
+                className="px-2.5 py-1 text-[10px] font-black text-slate-200 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all">
+                New Game
+              </button>
+            </div>
+            {visionMode === "graph" && (
+              <>
+                <div className="h-4 w-px bg-slate-800" />
+                <div className="flex items-center gap-1">
+                  {(["attack", "both", "defense"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setEdgeFilter(f)}
+                      className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg border transition-all ${
+                        edgeFilter === f
+                          ? edgeFilterActiveClass[f]
+                          : "border-slate-800 text-slate-600 hover:text-slate-400"
+                      }`}
+                    >
+                      {edgeFilterLabel[f]}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Board — grows to fill remaining space */}
           <div className="relative flex-1 min-h-0 bg-slate-900/40 rounded-2xl border border-slate-800/60 shadow-2xl overflow-hidden flex items-center justify-center">
             <BoardSizer
@@ -208,8 +234,11 @@ function TrainPage() {
               stableColorMap={stableColorMap}
               currentTransition={currentTransition}
               centralityMetric={centralityMetric}
+              highlightSquares={highlightSquares}
+              edgeFilter={edgeFilter}
               onPieceDrop={handlePieceDrop}
             />
+
             {isGameOver && (
               <GameOverModal
                 reason={gameOverReason}
@@ -277,6 +306,7 @@ function TrainPage() {
               analysisIndex={activeIndex}
               centralityMetric={centralityMetric}
               onIndexChange={isAnalysis ? (i) => navigateAnalysis(i) : undefined}
+              onBoardSync={handleBoardSync}
             />
           </div>
 
@@ -292,6 +322,7 @@ function TrainPage() {
                 currentIndex={activeIndex}
                 onIndexChange={isAnalysis ? (i) => navigateAnalysis(i) : undefined}
                 height={190}
+                analysisGraphSnapshots={activeSnapshots}
               />
             </div>
           )}
@@ -314,11 +345,12 @@ function TrainPage() {
 
 function BoardSizer({
   fen, orientation, isInteractive, shouldRenderGraph, graphSnapshot,
-  stableColorMap, currentTransition, centralityMetric, onPieceDrop,
+  stableColorMap, currentTransition, centralityMetric, highlightSquares, edgeFilter, onPieceDrop,
 }: {
   fen: string; orientation: "white" | "black"; isInteractive: boolean;
   shouldRenderGraph: boolean; graphSnapshot: any; stableColorMap: any;
-  currentTransition: any; centralityMetric: any;
+  currentTransition: any; centralityMetric: any; highlightSquares: Set<string>;
+  edgeFilter: EdgeFilter;
   onPieceDrop: (from: string, to: string | null) => boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -347,6 +379,7 @@ function BoardSizer({
         boardWidth={boardWidth}
         graphNodes={graphSnapshot?.nodes ?? []}
         centralityMetric={centralityMetric}
+        highlightSquares={highlightSquares}
       >
         {shouldRenderGraph && graphSnapshot && (
           <CommunityTiles
@@ -361,12 +394,14 @@ function BoardSizer({
         {shouldRenderGraph && graphSnapshot && (
           <GraphOverlay
             edges={graphSnapshot.edges}
+            nodes={graphSnapshot.nodes}
             boardWidth={boardWidth}
             orientation={orientation}
             fen={fen}
             hintMove={null}
             weightThreshold={0.1}
             showDominance={true}
+            edgeFilter={edgeFilter}
           />
         )}
       </ChessBoard>

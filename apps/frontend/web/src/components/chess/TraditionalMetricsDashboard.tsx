@@ -80,7 +80,7 @@ export function TraditionalMetricsDashboard({ fen, compact = false }: Traditiona
     const getKingSafety = (sq: Square | null, color: "w" | "b") => {
       if (!sq) return 0;
       const file = sq.charCodeAt(0) - 97;
-      const rank = parseInt(sq[1]) - 1;
+      const rank = parseInt(sq[1] ?? "1") - 1;
       const dir = color === "w" ? 1 : -1;
       let shield = 0;
       for (let df = -1; df <= 1; df++) {

@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useGameStore } from "#stores/game-store";
-import { Settings, ChevronDown, ChevronUp } from "lucide-react";
 
 interface DashboardHeaderProps {
-  settingsOpen: boolean;
-  onToggleSettings: () => void;
   engineReady: boolean;
   isThinking: boolean;
   engineError: string | null;
+  visionMode: "graph" | "classic";
+  onSetVisionMode: (m: "graph" | "classic") => void;
 }
 
 export function DashboardHeader({
-  settingsOpen,
-  onToggleSettings,
   engineReady,
   isThinking,
   engineError,
+  visionMode,
+  onSetVisionMode,
 }: DashboardHeaderProps) {
   const evaluation = useGameStore((s) => s.evaluation);
   const mateIn = useGameStore((s) => s.mateIn);
@@ -118,19 +117,18 @@ export function DashboardHeader({
 
       <div className="h-5 w-px bg-slate-800" />
 
-      {/* Settings toggle */}
-      <button
-        onClick={onToggleSettings}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
-          settingsOpen
-            ? "bg-indigo-600/30 text-indigo-300 border border-indigo-500/40"
-            : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 border border-transparent"
-        }`}
-      >
-        <Settings size={12} />
-        <span className="hidden sm:block">Settings</span>
-        {settingsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-      </button>
+      {/* Vision toggle */}
+      <div className="flex items-center bg-slate-900/70 p-0.5 rounded-lg border border-slate-800/60">
+        {(["graph", "classic"] as const).map((m) => (
+          <button key={m} type="button" onClick={() => onSetVisionMode(m)}
+            className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-tight rounded-md transition-all ${
+              visionMode === m ? "bg-slate-700 text-white shadow" : "text-slate-500 hover:text-slate-300"
+            }`}>
+            {m === "graph" ? "Graphity" : "Classic"}
+          </button>
+        ))}
+      </div>
+
     </div>
   );
 }

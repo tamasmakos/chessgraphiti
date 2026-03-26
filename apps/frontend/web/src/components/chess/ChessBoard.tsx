@@ -31,6 +31,11 @@ interface ChessBoardProps {
   graphNodes?: GraphNode[];
   /** Metric used for piece scaling */
   centralityMetric?: CentralityMetric;
+  /**
+   * When non-empty, only squares in this set receive centrality-based scaling.
+   * Squares not in the set are rendered at scale 1 (neutral), creating a spotlight effect.
+   */
+  highlightSquares?: Set<string>;
 }
 
 function getCentralityValue(node: GraphNode, metric: CentralityMetric): number {
@@ -70,9 +75,9 @@ export function ChessBoard({
   children,
   graphNodes = [],
   centralityMetric = "none",
+  highlightSquares,
 }: ChessBoardProps) {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
-  const setHoveredSquare = useGameStore((s) => s.setHoveredSquare);
 
   const scaledSquareRenderer = useMemo(() => {
     const bySquare = new Map<string, number>();
@@ -95,11 +100,15 @@ export function ChessBoard({
         height: "100%",
       };
 
+      const isHighlighted =
+        !highlightSquares || highlightSquares.size === 0 || highlightSquares.has(square);
+
       const canScale =
         centralityMetric !== "none" &&
         graphNodes.length > 0 &&
         piece !== null &&
-        bySquare.has(square);
+        bySquare.has(square) &&
+        isHighlighted;
 
       let scale = 1;
       if (canScale) {
@@ -112,10 +121,8 @@ export function ChessBoard({
       }
 
       return (
-        <div 
+        <div
           style={base}
-          onMouseEnter={() => setHoveredSquare(square)}
-          onMouseLeave={() => setHoveredSquare(null)}
         >
           <div
             style={{
@@ -138,7 +145,7 @@ export function ChessBoard({
         </div>
       );
     };
-  }, [graphNodes, centralityMetric]);
+  }, [graphNodes, centralityMetric, highlightSquares]);
 
   const options = useMemo(
     () => ({

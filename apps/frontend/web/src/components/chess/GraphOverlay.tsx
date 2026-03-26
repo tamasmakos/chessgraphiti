@@ -1,10 +1,12 @@
 import React, { useId, useMemo } from "react";
 import { getAttackedSquares, parsePieces } from "@yourcompany/chess/graph";
-import type { GraphEdge } from "@yourcompany/chess/types";
+import type { GraphEdge, GraphNode } from "@yourcompany/chess/types";
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
+
+export type EdgeFilter = "attack" | "defense" | "both";
 
 interface GraphOverlayProps {
   /** Graph edges to render as arrows */
@@ -25,6 +27,10 @@ interface GraphOverlayProps {
   showDominance?: boolean;
   /** Minimum normalized weight (0-1) for edges to display */
   weightThreshold?: number;
+  /** Which edge types to show; defaults to "both" */
+  edgeFilter?: EdgeFilter;
+  /** Graph nodes — when provided and edgeFilter=="both", edges are colored by source community */
+  nodes?: GraphNode[];
 }
 
 // ---------------------------------------------------------------------------
@@ -34,6 +40,18 @@ interface GraphOverlayProps {
 const ATTACK_COLOR = "#e11d48";
 const DEFENSE_COLOR = "#0ea5e9";
 const HINT_COLOR = "#10b981";
+
+/** Solid-hex parallels to COMMUNITY_COLORS — used for edge strokes in "both" mode */
+const COMMUNITY_EDGE_COLORS = [
+  "#ef4444",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#0ea5e9",
+  "#14b8a6",
+] as const;
 
 function getNormalizedWeight(absWeight: number, maxAbsWeight: number) {
   return Math.log1p(absWeight) / Math.log1p(maxAbsWeight);
@@ -95,6 +113,8 @@ export const GraphOverlay = React.memo(function GraphOverlay({
   hintMove,
   showDominance = true,
   weightThreshold = 0.15,
+  edgeFilter = "both",
+  nodes,
 }: GraphOverlayProps) {
   const overlayId = useId().replace(/[:]/g, "");
 
@@ -113,14 +133,23 @@ export const GraphOverlay = React.memo(function GraphOverlay({
   }, [edges, weightThreshold]);
 
   const edgePaths = useMemo(() => {
-    // Sort edges so attacks come first, then defenses.
-    const sorted = [...visibleEdges].sort((a, b) => {
-      if (a.type === "attack" && b.type === "defense") return -1;
-      if (a.type === "defense" && b.type === "attack") return 1;
-      return 0;
-    });
+    // Build a square → communityId lookup when nodes are provided
+    const communityMap = new Map<string, number>();
+    if (nodes) {
+      for (const n of nodes) communityMap.set(n.square, n.communityId);
+    }
+    const useCommunityColors = edgeFilter === "both" && communityMap.size > 0;
 
-    return sorted.map((edge, idx) => {
+    // Filter by type, then sort attacks before defenses
+    const sorted = visibleEdges
+      .filter((e) => edgeFilter === "both" || e.type === edgeFilter)
+      .sort((a, b) => {
+        if (a.type === "attack" && b.type === "defense") return -1;
+        if (a.type === "defense" && b.type === "attack") return 1;
+        return 0;
+      });
+
+    return sorted.map((edge) => {
       const src = squareToPixel(edge.from, boardWidth, orientation);
       const tgt = squareToPixel(edge.to, boardWidth, orientation);
 
@@ -128,34 +157,48 @@ export const GraphOverlay = React.memo(function GraphOverlay({
       const absWeight = Math.abs(edge.weight);
       const normalizedWeight = getNormalizedWeight(absWeight, maxAbsWeight);
 
-      const baseColor = isAttack ? ATTACK_COLOR : DEFENSE_COLOR;
+      let color: string;
+      let communityIdx: number | undefined;
+      if (useCommunityColors) {
+        const cid = communityMap.get(edge.from) ?? 0;
+        communityIdx = cid % COMMUNITY_EDGE_COLORS.length;
+        color = COMMUNITY_EDGE_COLORS[communityIdx] ?? ATTACK_COLOR;
+      } else {
+        color = isAttack ? ATTACK_COLOR : DEFENSE_COLOR;
+      }
+
       const opacity = 0.65 + normalizedWeight * 0.35;
       const strokeWidth = 2.5 + normalizedWeight * 4.0;
+      // In community mode: solid for attack, dashed for defense to preserve the distinction
+      const dashArray = useCommunityColors && !isAttack ? "5 3" : "1000 1000";
 
       const d = `M ${src.x} ${src.y} L ${tgt.x} ${tgt.y}`;
-
       const key = `${fen}-${edge.from}-${edge.to}-${edge.type}`;
+      const delay = isAttack ? 0 : 0.25;
 
-      let delay = 0;
-      if (isAttack) {
-        delay = 0;
+      let markerEnd: string;
+      if (useCommunityColors) {
+        markerEnd = `url(#arrow-community-${communityIdx}-${overlayId})`;
+      } else if (isAttack) {
+        markerEnd = `url(#arrow-attack-${overlayId})`;
       } else {
-        delay = 0.25;
+        markerEnd = `url(#arrow-defense-${overlayId})`;
       }
 
       return {
         key,
         d,
-        color: baseColor,
+        color,
         opacity,
         strokeWidth,
         isAttack,
-        dashArray: "1000 1000",
+        dashArray,
         className: isAttack ? "cg-edge-attack" : "cg-edge-defense",
         style: { animationDelay: `${delay.toFixed(3)}s` },
+        markerEnd,
       };
     });
-  }, [visibleEdges, boardWidth, orientation, maxAbsWeight, fen]);
+  }, [visibleEdges, boardWidth, orientation, maxAbsWeight, fen, nodes, edgeFilter, overlayId]);
 
   const hintLine = useMemo(() => {
     if (!hintMove) return null;
@@ -348,7 +391,21 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           <polygon points="0 2, 10 6, 0 10" fill={HINT_COLOR} />
         </marker>
 
-
+        {/* Per-community markers for "both" edge-filter mode */}
+        {COMMUNITY_EDGE_COLORS.map((color, idx) => (
+          <marker
+            key={color}
+            id={`arrow-community-${idx}-${overlayId}`}
+            markerWidth="10"
+            markerHeight="10"
+            refX="8"
+            refY="5"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <polygon points="0 2, 8 5, 0 8" fill={color} />
+          </marker>
+        ))}
       </defs>
 
       {dominanceCells.map((cell) => (
@@ -416,11 +473,7 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           strokeLinecap="round"
           strokeDasharray={line.dashArray}
           fill="none"
-          markerEnd={
-            line.isAttack
-              ? `url(#arrow-attack-${overlayId})`
-              : `url(#arrow-defense-${overlayId})`
-          }
+          markerEnd={line.markerEnd}
         />
       ))}
 
