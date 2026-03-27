@@ -17,7 +17,6 @@ import {
   CommunityLineageGraph,
   DashboardHeader,
 } from "#components/chess/index";
-import type { EdgeFilter } from "#components/chess/GraphOverlay";
 import { useGameStore } from "#stores/game-store";
 import { useStockfish } from "#hooks/use-stockfish";
 import { useApi } from "#lib/api";
@@ -32,7 +31,6 @@ function TrainPage() {
   const { isReady: engineReady, error: engineError } = useStockfish();
 
   const [visionMode, setVisionMode] = useState<"graph" | "classic">("graph");
-  const [edgeFilter, setEdgeFilter] = useState<EdgeFilter>("both");
   const [leftWidthPct, setLeftWidthPct] = useState(50);
   const [highlightSquares, setHighlightSquares] = useState<Set<string>>(new Set());
 
@@ -129,17 +127,6 @@ function TrainPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [isAnalysis, navigateAnalysis]);
 
-  const edgeFilterActiveClass: Record<EdgeFilter, string> = {
-    attack: "bg-rose-900/40 text-rose-400 border-rose-800/60",
-    defense: "bg-sky-900/40 text-sky-400 border-sky-800/60",
-    both: "bg-slate-700 text-indigo-300 border-slate-600",
-  };
-  const edgeFilterLabel: Record<EdgeFilter, string> = {
-    attack: "⚔",
-    defense: "🛡",
-    both: "⛵",
-  };
-
   return (
     <div className="h-screen max-h-screen flex flex-col overflow-hidden bg-slate-950 selection:bg-indigo-500/30">
 
@@ -200,27 +187,6 @@ function TrainPage() {
                 New Game
               </button>
             </div>
-            {visionMode === "graph" && (
-              <>
-                <div className="h-4 w-px bg-slate-800" />
-                <div className="flex items-center gap-1">
-                  {(["attack", "both", "defense"] as const).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setEdgeFilter(f)}
-                      className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg border transition-all ${
-                        edgeFilter === f
-                          ? edgeFilterActiveClass[f]
-                          : "border-slate-800 text-slate-600 hover:text-slate-400"
-                      }`}
-                    >
-                      {edgeFilterLabel[f]}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
 
           {/* Board — grows to fill remaining space */}
@@ -235,7 +201,6 @@ function TrainPage() {
               currentTransition={currentTransition}
               centralityMetric={centralityMetric}
               highlightSquares={highlightSquares}
-              edgeFilter={edgeFilter}
               onPieceDrop={handlePieceDrop}
             />
 
@@ -345,12 +310,11 @@ function TrainPage() {
 
 function BoardSizer({
   fen, orientation, isInteractive, shouldRenderGraph, graphSnapshot,
-  stableColorMap, currentTransition, centralityMetric, highlightSquares, edgeFilter, onPieceDrop,
+  stableColorMap, currentTransition, centralityMetric, highlightSquares, onPieceDrop,
 }: {
   fen: string; orientation: "white" | "black"; isInteractive: boolean;
   shouldRenderGraph: boolean; graphSnapshot: any; stableColorMap: any;
   currentTransition: any; centralityMetric: any; highlightSquares: Set<string>;
-  edgeFilter: EdgeFilter;
   onPieceDrop: (from: string, to: string | null) => boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -394,14 +358,12 @@ function BoardSizer({
         {shouldRenderGraph && graphSnapshot && (
           <GraphOverlay
             edges={graphSnapshot.edges}
-            nodes={graphSnapshot.nodes}
             boardWidth={boardWidth}
             orientation={orientation}
             fen={fen}
             hintMove={null}
             weightThreshold={0.1}
             showDominance={true}
-            edgeFilter={edgeFilter}
           />
         )}
       </ChessBoard>
