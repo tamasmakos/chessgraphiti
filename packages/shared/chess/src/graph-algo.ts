@@ -4,9 +4,8 @@
  * Converts a chess position (FEN string) into a weighted directed graph
  * with community detection and centrality metrics attached to each node.
  *
- * Pipeline: parsePieces -> computeAttackMap -> computeDefenseMap ->
- *           buildEdges -> detectCommunities -> computeCentrality ->
- *           GraphSnapshot
+ * Pipeline: parsePieces -> computeAttackMap -> buildEdges (SEE) ->
+ *           detectCommunities -> computeCentrality -> GraphSnapshot
  *
  * @module
  */
@@ -255,11 +254,10 @@ function fenToPly(fen: string): number {
  * This is the main entry point for the graph analysis pipeline. It:
  * 1. Parses pieces from the FEN
  * 2. Computes pseudo-legal attack maps
- * 3. Computes defense maps
- * 4. Builds weighted directed edges
- * 5. Detects communities via Leiden algorithm
- * 6. Computes centrality metrics (betweenness, degree, weighted, closeness)
- * 7. Returns a complete GraphSnapshot
+ * 3. Builds weighted directed edges using SEE (defenses derived from attack map)
+ * 4. Detects communities via Leiden algorithm
+ * 5. Computes centrality metrics (betweenness, degree, weighted, closeness)
+ * 6. Returns a complete GraphSnapshot
  *
  * @param fen - A valid FEN string
  * @returns Result containing the GraphSnapshot or an error
@@ -272,22 +270,19 @@ export function buildGraph(fen: string): Result<GraphSnapshot, Error> {
     // Step 2: Compute attack map
     const attackMap = computeAttackMap(fen, pieces);
 
-    // Step 3: Compute defense map
-    const defenseMap = computeDefenseMap(fen, pieces, attackMap);
+    // Step 3: Build edges (SEE derives defender pools from the attack map)
+    const edges = buildEdges(pieces, attackMap);
 
-    // Step 4: Build edges
-    const edges = buildEdges(pieces, attackMap, defenseMap);
-
-    // Step 5: Build nodes
+    // Step 4: Build nodes
     const nodes = buildNodes(pieces);
 
-    // Step 6: Community detection (Leiden)
+    // Step 5: Community detection (Leiden)
     const communities = detectCommunities(nodes, edges);
     for (const node of nodes) {
       node.communityId = communities.get(node.square) ?? 0;
     }
 
-    // Step 7: Centrality metrics
+    // Step 6: Centrality metrics
     const betweenness = computeBetweennessCentrality(nodes, edges);
     const degree = computeDegreeCentrality(nodes, edges);
     const weighted = computeWeightedDegreeCentrality(nodes, edges);

@@ -1,50 +1,56 @@
 /**
  * Edge weight calculation for the chess graph.
  *
- * For attack edges:
- *   weight = max(0, attackerValue + targetValue - sum(defenderValues))
+ * Attack edges use Static Exchange Evaluation (SEE) to determine whether a
+ * capture chain is materially profitable for the initiating piece. An attack
+ * edge is only emitted when SEE > 0 — i.e. the capturing piece can net
+ * material through the optimal exchange sequence.
  *
- * For defense edges (same-color piece protecting another):
+ * Defense edges (same-color piece protecting another) use a value-weighted
+ * formula:
  *   weight = targetValue + (defenderValue * 0.2)
  *
- * The attack formula uses full defense cancellation (no 0.5 discount),
- * meaning a piece defended by equal material fully cancels the attack weight.
- * This corrects the MVP's `defenderSum * 0.5` which underweighted defense.
+ * Kings are excluded from SEE exchange sequences because their participation
+ * depends on in-check legality that pseudo-legal attack maps do not model.
+ * Kings are also never the target of defense edges (Piece→King arrows carry
+ * no useful tactical meaning and their disproportionate value would dominate
+ * the visualisation).
  */
-import type { PieceInfo, GraphEdge, AttackMap, DefenseMap } from "#types";
-import { PIECE_VALUES } from "#constants";
+import type { PieceInfo, GraphEdge, AttackMap } from "#types";
 
 /**
- * Compute the weight of an attack edge.
+ * Static Exchange Evaluation (SEE).
  *
- * @param attacker - The attacking piece
- * @param target - The piece being attacked (must be opposite color)
- * @param defenderSquares - Squares of pieces defending the target
- * @param pieces - All pieces on the board (for looking up defender values)
- * @returns Non-negative weight representing the severity of the attack
+ * Simulates the full optimal capture sequence on a square, cheapest pieces
+ * first. Each side can stop capturing at any point if continuing would lose
+ * material. Returns the net material gain for the first-moving side.
+ *
+ * NOTE: No X-ray detection is performed. When a piece moves off a square to
+ * capture, any piece behind it on the same ray is not automatically added to
+ * the attacker pool. The attack map is static and pre-computed.
+ *
+ * @param firstCapture - Material value of the piece being captured first
+ * @param myAttackers - Values of pieces on the first-moving side that attack
+ *   the square, sorted cheapest-first. The first element executes the initial
+ *   capture.
+ * @param theirAttackers - Values of pieces on the defending side that attack
+ *   the square, sorted cheapest-first.
+ * @returns Net material gain ≥ 0 for the first-moving side
  */
-export function computeAttackWeight(
-  attacker: PieceInfo,
-  target: PieceInfo,
-  defenderSquares: string[],
-  pieces: PieceInfo[],
+export function computeSEE(
+  firstCapture: number,
+  myAttackers: readonly number[],
+  theirAttackers: readonly number[],
 ): number {
-  if (defenderSquares.length === 0) {
-    // Undefended target: attack threatens to win full material
-    return target.value;
-  }
+  if (myAttackers.length === 0) return 0;
 
-  // Defended target: evaluate the trade
-  const exchangeValue = target.value - attacker.value;
+  // We capture the piece worth firstCapture using myAttackers[0].
+  // Opponent responds optimally from theirAttackers.
+  const [first, ...rest] = myAttackers;
+  const gain = firstCapture - computeSEE(first!, theirAttackers, rest);
 
-  if (exchangeValue >= 0) {
-    // Favorable or even trade (e.g. Pawn attacks Rook, or Knight attacks Bishop)
-    return target.value + exchangeValue;
-  }
-
-  // Losing trade (attacker > target). E.g., Rook attacks defended Pawn.
-  // This attack is completely nullified by the defender and should not draw an edge.
-  return 0;
+  // Either side can choose not to capture if the continuation loses material.
+  return Math.max(0, gain);
 }
 
 /**
@@ -59,21 +65,24 @@ export function computeDefenseWeight(defender: PieceInfo, target: PieceInfo): nu
 }
 
 /**
- * Build all graph edges from attack/defense maps and piece positions.
+ * Build all graph edges from the attack map and piece positions.
  *
- * For each piece, iterates through its attack targets. If the target is an
- * enemy piece, creates an attack edge. If it's a friendly piece, creates
- * a defense edge.
+ * Attack edges: uses SEE with the actor as first capturer. Only edges where
+ * SEE > 0 are emitted — the initiating piece nets material from the optimal
+ * exchange. Kings are excluded from exchange sequences.
+ *
+ * Defense edges: a same-color piece defending a non-King target emits an
+ * edge with weight = targetValue + defenderValue * 0.2. Piece→King defense
+ * edges are suppressed — their disproportionate weight would dominate the
+ * visualisation and the relationship has no tactical equivalent.
  *
  * @param pieces - All pieces on the board
- * @param attackMap - Map of each piece's attacked squares
- * @param defenseMap - Map of each square to its defenders
+ * @param attackMap - Map of each piece's attacked squares (pseudo-legal)
  * @returns Array of weighted directed edges
  */
 export function buildEdges(
   pieces: PieceInfo[],
   attackMap: AttackMap,
-  defenseMap: DefenseMap,
 ): GraphEdge[] {
   const edges: GraphEdge[] = [];
   const pieceBySquare = new Map<string, PieceInfo>();
@@ -81,20 +90,52 @@ export function buildEdges(
     pieceBySquare.set(p.square, p);
   }
 
+  // Reverse attack map: target square → all pieces that attack it.
+  // Used to gather both sides' attacker pools for SEE.
+  const attackersBySquare = new Map<string, PieceInfo[]>();
   for (const actor of pieces) {
-    const attackedSquares = attackMap.get(actor.square) ?? [];
+    for (const sq of attackMap.get(actor.square) ?? []) {
+      const list = attackersBySquare.get(sq) ?? [];
+      list.push(actor);
+      attackersBySquare.set(sq, list);
+    }
+  }
 
-    for (const targetSquare of attackedSquares) {
+  for (const actor of pieces) {
+    for (const targetSquare of attackMap.get(actor.square) ?? []) {
       const target = pieceBySquare.get(targetSquare);
       if (!target) continue;
 
       const isEnemy = target.color !== actor.color;
 
       if (isEnemy) {
-        // Attack edge: actor attacks enemy target
-        const defenders = defenseMap.get(targetSquare) ?? [];
-        const weight = computeAttackWeight(actor, target, defenders, pieces);
-        // Only add edges with positive weight (meaningful tension)
+        const allAttackers = attackersBySquare.get(targetSquare) ?? [];
+
+        // Actor initiates the capture; remaining same-color non-King pieces
+        // fill the follow-up slots, sorted cheapest-first.
+        const otherMine = allAttackers
+          .filter(
+            (p) =>
+              p.color === actor.color &&
+              p.square !== actor.square &&
+              p.type !== "k",
+          )
+          .map((p) => p.value)
+          .sort((a, b) => a - b);
+        const seeMyAttackers = [actor.value, ...otherMine];
+
+        // Defending side's non-King pieces that attack the square.
+        const seeTheirAttackers = allAttackers
+          .filter((p) => p.color === target.color && p.type !== "k")
+          .map((p) => p.value)
+          .sort((a, b) => a - b);
+
+        const weight = computeSEE(
+          target.value,
+          seeMyAttackers,
+          seeTheirAttackers,
+        );
+
         if (weight > 0) {
           edges.push({
             from: actor.square,
@@ -104,7 +145,11 @@ export function buildEdges(
           });
         }
       } else {
-        // Defense edge: actor defends friendly target
+        // Defense edge: actor defends friendly target.
+        // Skip Piece→King defense edges: a piece cannot meaningfully "defend"
+        // the king in the same way it defends other pieces, and the king's
+        // disproportionate value (1000) would dominate the visualisation.
+        if (target.type === "k") continue;
         const weight = computeDefenseWeight(actor, target);
         edges.push({
           from: actor.square,

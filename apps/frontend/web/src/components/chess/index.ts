@@ -6,3 +6,4 @@ export { CommunityLineageGraph } from "./CommunityLineageGraph";
 export { TraditionalMetricsDashboard } from "./TraditionalMetricsDashboard";
 export { CentralityD3Dashboard } from "./CentralityD3Dashboard";
 export { DashboardHeader } from "./DashboardHeader";
+export { FluidFieldOverlay } from "./FluidFieldOverlay";

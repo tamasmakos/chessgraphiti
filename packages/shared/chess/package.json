@@ -15,6 +15,7 @@
     "./community-lineage": "./src/community-lineage.ts",
     "./centrality": "./src/centrality.ts",
     "./engine": "./src/engine.ts",
+    "./influence": "./src/influence.ts",
 
     "./opening-db/ecoDatabase": "./src/opening-db/ecoDatabase.ts"
   },

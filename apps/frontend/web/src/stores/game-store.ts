@@ -136,6 +136,64 @@ function buildAnalysisFens(history: MoveRecord[]): string[] {
 	return fens;
 }
 
+function buildAnalysisState(history: MoveRecord[], targetIndex?: number) {
+	const analysisFens = buildAnalysisFens(history);
+	const analysisGraphSnapshots = analysisFens.map((fen) => computeGraph(fen));
+	const analysisLineage = analyzeCommunityLineage(analysisGraphSnapshots);
+	const lastIndex = analysisFens.length - 1;
+	const analysisIndex = Math.max(
+		0,
+		Math.min(lastIndex, targetIndex ?? lastIndex),
+	);
+
+	return {
+		analysisFens,
+		analysisGraphSnapshots,
+		analysisLineage,
+		analysisIndex,
+		fen: analysisFens[analysisIndex] ?? STARTING_FEN,
+		graphSnapshot: analysisGraphSnapshots[analysisIndex] ?? null,
+	};
+}
+
+function buildLiveResumeState(state: GameStore) {
+	const currentFen = state._game.fen();
+	const graphSnapshot = state.liveGraphEnabled
+		? state.analysisGraphSnapshots.at(-1) ?? null
+		: null;
+
+	return {
+		gameStatus: state.history.length > 0 ? "playing" : "idle",
+		fen: currentFen,
+		analysisIndex: 0,
+		analysisFens: [],
+		analysisGraphSnapshots: [],
+		analysisLineage: null,
+		graphSnapshot,
+	};
+}
+
+function resolveAnalysisIndex(
+	direction: "first" | "prev" | "next" | "last" | number,
+	currentIndex: number,
+	lastIndex: number,
+): number {
+	if (typeof direction === "number") {
+		return Math.max(0, Math.min(lastIndex, direction));
+	}
+
+	switch (direction) {
+		case "first":
+			return 0;
+		case "prev":
+			return Math.max(0, currentIndex - 1);
+		case "next":
+			return Math.min(lastIndex, currentIndex + 1);
+		case "last":
+			return lastIndex;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -342,22 +400,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	startAnalysis: () => {
 		const state = get();
 		if (state.history.length === 0) return;
-
-		const fens = buildAnalysisFens(state.history);
-		const lastIndex = fens.length - 1;
-
-		const analysisGraphSnapshots = fens.map((fen) => computeGraph(fen));
-		const analysisLineage = analyzeCommunityLineage(analysisGraphSnapshots);
-		const graphSnapshot = analysisGraphSnapshots[lastIndex] ?? null;
+		const analysisState = buildAnalysisState(state.history);
 
 		set({
 			gameStatus: "analysis",
-			analysisFens: fens,
-			analysisIndex: lastIndex,
-			fen: fens[lastIndex]!,
-			graphSnapshot,
-			analysisGraphSnapshots,
-			analysisLineage,
+			...analysisState,
 		});
 	},
 
@@ -365,47 +412,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
 		const state = get();
 		if (state.gameStatus !== "analysis") return;
 
-		const currentFen = state._game.fen();
-		const graphSnapshot = state.liveGraphEnabled
-			? state.analysisGraphSnapshots[state.analysisGraphSnapshots.length - 1] ?? null
-			: null;
-
-		set({
-			gameStatus: state.history.length > 0 ? "playing" : "idle",
-			fen: currentFen,
-			analysisIndex: 0,
-			analysisFens: [],
-			analysisGraphSnapshots: [],
-			analysisLineage: null,
-			graphSnapshot,
-		});
+		set(buildLiveResumeState(state));
 	},
 
 	navigateAnalysis: (direction) => {
 		const state = get();
-		if (state.gameStatus !== "analysis") return;
+		if (state.history.length === 0) return;
+
+		if (state.gameStatus !== "analysis") {
+			const liveLastIndex = state.history.length;
+			const targetIndex = resolveAnalysisIndex(
+				direction,
+				liveLastIndex,
+				liveLastIndex,
+			);
+			const analysisState = buildAnalysisState(state.history, targetIndex);
+
+			set({
+				gameStatus: "analysis",
+				...analysisState,
+			});
+			return;
+		}
 
 		const { analysisFens, analysisIndex } = state;
 		const lastIndex = analysisFens.length - 1;
+		const newIndex = resolveAnalysisIndex(direction, analysisIndex, lastIndex);
+		const shouldResumeLivePlay =
+			newIndex === lastIndex && state.gameOverReason === undefined;
 
-		let newIndex: number;
-		if (typeof direction === "number") {
-			newIndex = Math.max(0, Math.min(lastIndex, direction));
-		} else {
-			switch (direction) {
-				case "first":
-					newIndex = 0;
-					break;
-				case "prev":
-					newIndex = Math.max(0, analysisIndex - 1);
-					break;
-				case "next":
-					newIndex = Math.min(lastIndex, analysisIndex + 1);
-					break;
-				case "last":
-					newIndex = lastIndex;
-					break;
-			}
+		if (shouldResumeLivePlay) {
+			set(buildLiveResumeState(state));
+			return;
 		}
 
 		if (newIndex === analysisIndex) return;

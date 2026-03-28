@@ -16,6 +16,7 @@ import {
   TraditionalMetricsDashboard,
   CommunityLineageGraph,
   DashboardHeader,
+  FluidFieldOverlay,
 } from "#components/chess/index";
 import { useGameStore } from "#stores/game-store";
 import { useStockfish } from "#hooks/use-stockfish";
@@ -33,6 +34,8 @@ function TrainPage() {
   const [visionMode, setVisionMode] = useState<"graph" | "classic">("graph");
   const [leftWidthPct, setLeftWidthPct] = useState(50);
   const [highlightSquares, setHighlightSquares] = useState<Set<string>>(new Set());
+  const [showFluidField, setShowFluidField] = useState(false);
+  const [fluidFieldOpacity, setFluidFieldOpacity] = useState(0.4);
 
   const fen = useGameStore((s) => s.fen);
   const pgn = useGameStore((s) => s.pgn);
@@ -49,7 +52,6 @@ function TrainPage() {
   const centralityMetric = useGameStore((s) => s.centralityMetric);
   const engineStrength = useGameStore((s) => s.engineStrength);
   const analysisIndex = useGameStore((s) => s.analysisIndex);
-  const analysisFens = useGameStore((s) => s.analysisFens);
   const analysisGraphSnapshots = useGameStore((s) => s.analysisGraphSnapshots);
   const analysisLineage = useGameStore((s) => s.analysisLineage);
   const history = useGameStore((s) => s.history);
@@ -77,6 +79,7 @@ function TrainPage() {
   const isAnalysis = gameStatus === "analysis";
   const isGameOver = gameStatus === "gameover";
   const isPlaying = gameStatus === "playing";
+  const canReview = history.length > 0;
   const isInteractive = !isAnalysis && !isGameOver && !isEngineThinking;
 
   const shouldRenderGraph =
@@ -123,8 +126,8 @@ function TrainPage() {
         case "End": e.preventDefault(); navigateAnalysis("last"); break;
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    globalThis.addEventListener("keydown", handler);
+    return () => globalThis.removeEventListener("keydown", handler);
   }, [isAnalysis, navigateAnalysis]);
 
   return (
@@ -187,6 +190,32 @@ function TrainPage() {
                 New Game
               </button>
             </div>
+            <div className="h-4 w-px bg-slate-800" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFluidField((v) => !v)}
+                className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                  showFluidField
+                    ? "bg-amber-600/20 text-amber-300 border-amber-700/50"
+                    : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                }`}
+              >
+                Fluid
+              </button>
+              {showFluidField && (
+                <>
+                  <input
+                    type="range" min={0} max={100} step={5}
+                    value={Math.round(fluidFieldOpacity * 100)}
+                    onChange={(e) => setFluidFieldOpacity(Number(e.target.value) / 100)}
+                    className="w-16 accent-amber-500 h-1 bg-slate-800 rounded-lg cursor-pointer"
+                  />
+                  <span className="text-[10px] font-mono text-amber-400 w-8 text-right">
+                    {Math.round(fluidFieldOpacity * 100)}%
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Board — grows to fill remaining space */}
@@ -202,6 +231,8 @@ function TrainPage() {
               centralityMetric={centralityMetric}
               highlightSquares={highlightSquares}
               onPieceDrop={handlePieceDrop}
+              showFluidField={showFluidField}
+              fluidFieldOpacity={fluidFieldOpacity}
             />
 
             {isGameOver && (
@@ -221,13 +252,13 @@ function TrainPage() {
           </div>
 
           {/* Controls */}
-          {isAnalysis && (
+          {canReview && (
             <div className="flex-shrink-0">
               <AnalysisControls
-                index={analysisIndex}
-                total={analysisFens.length - 1}
+                index={isAnalysis ? analysisIndex : history.length}
+                total={history.length}
                 onNavigate={navigateAnalysis}
-                onExit={exitAnalysis}
+                onExit={isAnalysis ? exitAnalysis : undefined}
               />
             </div>
           )}
@@ -285,7 +316,7 @@ function TrainPage() {
               <CommunityLineageGraph
                 analysis={activeLineage}
                 currentIndex={activeIndex}
-                onIndexChange={isAnalysis ? (i) => navigateAnalysis(i) : undefined}
+                onIndexChange={canReview ? (i) => navigateAnalysis(i) : undefined}
                 height={190}
                 analysisGraphSnapshots={activeSnapshots}
               />
@@ -311,11 +342,13 @@ function TrainPage() {
 function BoardSizer({
   fen, orientation, isInteractive, shouldRenderGraph, graphSnapshot,
   stableColorMap, currentTransition, centralityMetric, highlightSquares, onPieceDrop,
+  showFluidField, fluidFieldOpacity,
 }: {
   fen: string; orientation: "white" | "black"; isInteractive: boolean;
   shouldRenderGraph: boolean; graphSnapshot: any; stableColorMap: any;
   currentTransition: any; centralityMetric: any; highlightSquares: Set<string>;
   onPieceDrop: (from: string, to: string | null) => boolean;
+  showFluidField: boolean; fluidFieldOpacity: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(480);
@@ -345,6 +378,15 @@ function BoardSizer({
         centralityMetric={centralityMetric}
         highlightSquares={highlightSquares}
       >
+        {showFluidField && graphSnapshot && (
+          <FluidFieldOverlay
+            snapshot={graphSnapshot}
+            playerColor={orientation === "white" ? "white" : "black"}
+            boardWidth={boardWidth}
+            orientation={orientation}
+            overlayOpacity={fluidFieldOpacity}
+          />
+        )}
         {shouldRenderGraph && graphSnapshot && (
           <CommunityTiles
             nodes={graphSnapshot.nodes}
@@ -417,33 +459,39 @@ function VisionControls({ centralityMetric, onSetMetric, visionMode, onSetVision
 // ---------------------------------------------------------------------------
 // Analysis Controls
 // ---------------------------------------------------------------------------
-function AnalysisControls({ index, total, onNavigate, onExit }: {
-  index: number; total: number;
+function AnalysisControls({ index, total, onNavigate, onExit }: Readonly<{
+  index: number;
+  total: number;
   onNavigate: (dir: "first" | "prev" | "next" | "last") => void;
-  onExit: () => void;
-}) {
+  onExit?: () => void;
+}>) {
+  const canGoPrev = index > 0;
+  const canGoNext = index < total;
+
   return (
     <div className="flex items-center gap-2 bg-slate-900/60 rounded-xl border border-indigo-500/20 px-3 py-2">
       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex-shrink-0">Analysis</span>
       <div className="flex items-center gap-1">
-        {(["first", "prev"] as const).map((d) => (
-          <button key={d} onClick={() => onNavigate(d)}
+        {canGoPrev && (
+          <button onClick={() => onNavigate("prev")}
             className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-[11px] font-mono transition-colors">
-            {d === "first" ? "⟨⟨" : "⟨"}
+            ⟨
           </button>
-        ))}
+        )}
         <span className="text-[11px] font-mono font-bold text-white px-2 py-1 bg-slate-900 rounded-lg border border-slate-800 min-w-[50px] text-center">
           {index}/{total}
         </span>
-        {(["next", "last"] as const).map((d) => (
-          <button key={d} onClick={() => onNavigate(d)}
+        {canGoNext && (
+          <button onClick={() => onNavigate("next")}
             className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-[11px] font-mono transition-colors">
-            {d === "next" ? "⟩" : "⟩⟩"}
+            ⟩
           </button>
-        ))}
+        )}
       </div>
       <div className="flex-1" />
-      <button onClick={onExit} className="text-[10px] text-slate-500 hover:text-slate-200 transition-colors font-medium">Exit ×</button>
+      {onExit && (
+        <button onClick={onExit} className="text-[10px] text-slate-500 hover:text-slate-200 transition-colors font-medium">Exit ×</button>
+      )}
     </div>
   );
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeAttackWeight,
+  computeSEE,
   computeDefenseWeight,
   buildEdges,
 } from "../edge-weights.ts";
-import type { PieceInfo, AttackMap, DefenseMap } from "../types.ts";
+import type { PieceInfo, AttackMap } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,87 +25,54 @@ function makePiece(
 }
 
 // ---------------------------------------------------------------------------
-// computeAttackWeight
+// computeSEE
 // ---------------------------------------------------------------------------
 
-describe("computeAttackWeight", () => {
-  it("pawn attacking undefended knight → weight = 3", () => {
-    const attacker = makePiece("e4", "p", "w", 1);
-    const target = makePiece("d5", "n", "b", 3);
-    const pieces = [attacker, target];
-
-    const weight = computeAttackWeight(attacker, target, [], pieces);
-    expect(weight).toBe(3); // target.value = 3
+describe("computeSEE", () => {
+  it("undefended target: gain is full target value", () => {
+    // pawn(1) takes undefended knight(3)
+    expect(computeSEE(3, [1], [])).toBe(3);
   });
 
-  it("knight attacking queen defended by rook → weight = 15", () => {
-    const attacker = makePiece("f5", "n", "w", 3);
-    const target = makePiece("d6", "q", "b", 9);
-    const defender = makePiece("d8", "r", "b", 5);
-    const pieces = [attacker, target, defender];
-
-    const weight = computeAttackWeight(attacker, target, ["d8"], pieces);
-    expect(weight).toBe(15); // 9 + (9 - 3) = 15
+  it("favorable trade: knight takes queen defended by pawn", () => {
+    // gain = 9 - computeSEE(3, [1], []) = 9 - 3 = 6
+    expect(computeSEE(9, [3], [1])).toBe(6);
   });
 
-  it("pawn attacking pawn defended by queen → weight = 1", () => {
-    const attacker = makePiece("e4", "p", "w", 1);
-    const target = makePiece("d5", "p", "b", 1);
-    const defender = makePiece("d8", "q", "b", 9);
-    const pieces = [attacker, target, defender];
-
-    const weight = computeAttackWeight(attacker, target, ["d8"], pieces);
-    expect(weight).toBe(1); // 1 + (1 - 1) = 1
+  it("losing trade returns 0: rook takes knight defended by pawn", () => {
+    // gain = 3 - computeSEE(5, [1], []) = 3 - 5 = -2 → 0
+    expect(computeSEE(3, [5], [1])).toBe(0);
   });
 
-  it("favorable trade evaluated correctly regardless of defender sum", () => {
-    const attacker = makePiece("e4", "p", "w", 1);
-    const target = makePiece("d5", "n", "b", 3);
-    const d1 = makePiece("c6", "r", "b", 5);
-    const d2 = makePiece("e6", "b", "b", 3);
-    const pieces = [attacker, target, d1, d2];
-
-    const weight = computeAttackWeight(attacker, target, ["c6", "e6"], pieces);
-    expect(weight).toBe(5); // 3 + (3 - 1) = 5
+  it("even trade with equal recapturer returns 0", () => {
+    // pawn takes pawn defended by pawn: 1 - computeSEE(1, [1], []) = 1 - 1 = 0
+    expect(computeSEE(1, [1], [1])).toBe(0);
   });
 
-  it("bishop attacking undefended rook → weight = 5", () => {
-    const attacker = makePiece("b2", "b", "w", 3);
-    const target = makePiece("g7", "r", "b", 5);
-    const pieces = [attacker, target];
-
-    const weight = computeAttackWeight(attacker, target, [], pieces);
-    expect(weight).toBe(5); // target.value = 5
+  it("defender opts not to recapture when doing so would lose material", () => {
+    // Pawn(1) + Rook(5) take Knight(3), defended only by Bishop(3).
+    // Bishop recaptures pawn (gains 1), but then Rook takes Bishop (bishop loses net 2).
+    // Bishop opts not to recapture → pawn takes knight for free.
+    // computeSEE(3, [1,5], [3]):
+    //   gain = 3 - computeSEE(1, [3], [5])
+    //     computeSEE(1, [3], [5]):
+    //       gain = 1 - computeSEE(3, [5], []) = 1 - 3 = -2 → 0
+    //   gain = 3 - 0 = 3
+    expect(computeSEE(3, [1, 5], [3])).toBe(3);
   });
 
-  it("returns full weight for nonexistent defender squares (graceful fallback)", () => {
-    const attacker = makePiece("e4", "p", "w", 1);
-    const target = makePiece("d5", "n", "b", 3);
-    const pieces = [attacker, target];
-
-    // "z9" doesn't correspond to any piece → its value defaults to 0
-    const weight = computeAttackWeight(attacker, target, ["z9"], pieces);
-    expect(weight).toBe(5); // 3 + (3 - 1) = 5
+  it("returns 0 when no attackers remain", () => {
+    expect(computeSEE(5, [], [3])).toBe(0);
   });
 
-  it("losing trade (queen attacks defended rook) returns weight 0", () => {
-    const attacker = makePiece("f5", "q", "w", 9);
-    const target = makePiece("d7", "r", "b", 5);
-    const d1 = makePiece("d8", "k", "b", 1000);
-    const d2 = makePiece("e7", "p", "b", 1);
-    const pieces = [attacker, target, d1, d2];
-
-    const weight = computeAttackWeight(attacker, target, ["d8", "e7"], pieces);
-    expect(weight).toBe(0); // losing trade, weight is 0
+  it("heavy piece can take undefended pawn", () => {
+    // queen(9) takes undefended pawn(1) — always profitable if no recapture
+    expect(computeSEE(1, [9], [])).toBe(1);
   });
 
-  it("queen attacking undefended king → weight = 1000", () => {
-    const attacker = makePiece("d1", "q", "w", 9);
-    const target = makePiece("d8", "k", "b", 1000);
-    const pieces = [attacker, target];
-
-    const weight = computeAttackWeight(attacker, target, [], pieces);
-    expect(weight).toBe(1000); // target.value = 1000
+  it("queen losing trade: takes defended pawn with queen recapture available", () => {
+    // queen(9) takes pawn(1) defended by queen(9): gain = 1 - 9 = -8 → 0
+    expect(computeSEE(1, [9], [9])).toBe(0);
   });
 });
 
@@ -142,6 +109,8 @@ describe("computeDefenseWeight", () => {
     const defender = makePiece("d1", "q", "w", 9);
     const target = makePiece("e1", "k", "w", 1000);
 
+    // computeDefenseWeight still calculates a value (used internally)
+    // but buildEdges will never emit this edge for visualisation purposes
     const weight = computeDefenseWeight(defender, target);
     expect(weight).toBeCloseTo(1001.8); // 1000 + 9 * 0.2 = 1001.8
   });
@@ -169,9 +138,8 @@ describe("buildEdges", () => {
       ["e4", ["d5", "f5"]],
       ["d5", ["c3", "e3", "b4", "f4", "c7", "e7", "b6", "f6"]],
     ]);
-    const defenseMap: DefenseMap = new Map();
 
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
 
     const attackEdge = edges.find(
       (e) => e.from === "e4" && e.to === "d5" && e.type === "attack",
@@ -189,9 +157,8 @@ describe("buildEdges", () => {
       ["d1", ["d2", "d3", "d4"]],
       ["d4", ["d1"]],
     ]);
-    const defenseMap: DefenseMap = new Map();
 
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
 
     const defenseEdge = edges.find(
       (e) => e.from === "d1" && e.to === "d4" && e.type === "defense",
@@ -200,7 +167,7 @@ describe("buildEdges", () => {
     expect(defenseEdge!.weight).toBe(10); // 9 + 5 * 0.2 = 10
   });
 
-  it("does not create attack edges with weight 0", () => {
+  it("does not create attack edges with weight 0 (losing trade via SEE)", () => {
     const whiteQueen = makePiece("e4", "q", "w", 9);
     const blackPawn = makePiece("d5", "p", "b", 1);
     const blackQueen = makePiece("c6", "q", "b", 9);
@@ -209,15 +176,13 @@ describe("buildEdges", () => {
     const attackMap: AttackMap = new Map([
       ["e4", ["d5", "f5"]],
       ["d5", []],
-      ["c6", []],
-    ]);
-    const defenseMap: DefenseMap = new Map([
-      ["d5", ["c6"]], // black queen defends black pawn
+      // black queen on c6 attacks d5 — this is how SEE discovers the defender
+      ["c6", ["d5"]],
     ]);
 
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
 
-    // Losing trade: weight = 0, no attack edge created
+    // SEE(1, [9], [9]): white queen gains 1 but black queen recaptures worth 9 → net = -8 → 0
     const attackEdge = edges.find(
       (e) => e.from === "e4" && e.to === "d5" && e.type === "attack",
     );
@@ -233,11 +198,6 @@ describe("buildEdges", () => {
     const blackPawn = makePiece("d4", "p", "b", 1);
     const pieces = [whiteRook, whiteKnight, blackBishop, blackPawn];
 
-    // Knight on c3 attacks d5, e4, e2, d1, b1, a2, a4, b5 — and d4 is not there,
-    // but also attacks squares like d5. Let's say it attacks e4 and d5 only for simplicity,
-    // plus b5 where blackBishop... let's use a realistic scenario:
-    // Knight c3 attacks: a2, a4, b1, b5, d1, d5, e2, e4
-    // Rook a1 attacks: a2..a8, b1..h1 (let's say a2, a3, ..., b1, c1, d1)
     const attackMap: AttackMap = new Map([
       ["a1", ["a2", "a3", "a4", "b1", "c1"]],
       ["c3", ["a2", "a4", "b1", "b5", "d1", "d5", "e2", "e4"]],
@@ -245,12 +205,7 @@ describe("buildEdges", () => {
       ["d4", ["c3", "e3"]], // black pawn attacks c3 and e3
     ]);
 
-    // Black pawn on d4 defended by bishop on e5 (e5 attacks d4)
-    const defenseMap: DefenseMap = new Map([
-      ["d4", ["e5"]],
-    ]);
-
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
 
     // Attack edges: black pawn d4 attacks white knight c3 (enemy)
     //   weight = max(0, 1 + 3 - 0) = 4 (c3 has no defense)
@@ -280,7 +235,20 @@ describe("buildEdges", () => {
   });
 
   it("returns empty array for no pieces", () => {
-    const edges = buildEdges([], new Map(), new Map());
+    const edges = buildEdges([], new Map());
+    expect(edges).toEqual([]);
+  });
+
+  it("does not create a defense edge when the target is a king", () => {
+    const rook = makePiece("d1", "r", "w", 5);
+    const king = makePiece("e1", "k", "w", 1000);
+    const pieces = [rook, king];
+
+    const attackMap: AttackMap = new Map([["d1", ["e1"]], ["e1", []]]);
+
+    const edges = buildEdges(pieces, attackMap);
+
+    // No edge should be emitted — king is the target
     expect(edges).toEqual([]);
   });
 
@@ -290,9 +258,8 @@ describe("buildEdges", () => {
 
     // pawn attacks d5 and f5, but no pieces are on those squares
     const attackMap: AttackMap = new Map([["e4", ["d5", "f5"]]]);
-    const defenseMap: DefenseMap = new Map();
 
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
     expect(edges).toEqual([]);
   });
 
@@ -307,9 +274,8 @@ describe("buildEdges", () => {
       ["d4", ["e5", "d1"]],
       ["e5", []],
     ]);
-    const defenseMap: DefenseMap = new Map();
 
-    const edges = buildEdges(pieces, attackMap, defenseMap);
+    const edges = buildEdges(pieces, attackMap);
 
     for (const edge of edges) {
       expect(edge.weight).toBeGreaterThan(0);

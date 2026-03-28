@@ -4,7 +4,6 @@ import { AuthProvider } from "#providers/auth-provider";
 import { ORPCProvider } from "#providers/orpc-provider";
 import { ThemeProvider } from "next-themes";
 import { getConfig } from "#lib/config";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { AuthGuard } from "#components/auth/auth-guard";
 
 const config = getConfig();
@@ -43,7 +42,6 @@ function RootComponent() {
           </AuthProvider>
         </ORPCProvider>
       </SessionProvider>
-      <TanStackRouterDevtools />
     </ThemeProvider>
   );
 }

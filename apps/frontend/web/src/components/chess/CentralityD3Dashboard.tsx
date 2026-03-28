@@ -195,28 +195,35 @@ export function CentralityD3Dashboard({
         </div>
       </div>
 
-      {/* Timeline — full width */}
-      <div className="h-[155px] w-full bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden">
-        {hasData ? (
-          <CentralityTimelineD3
-            snapshots={analysisGraphSnapshots}
-            currentIndex={analysisIndex}
-            activeMetric={activeMetric}
-            selectedPieces={selectedPieces}
-            onIndexChange={onIndexChange}
-          />
-        ) : (
-          <EmptyState label="Play moves to build the centrality history" />
-        )}
-      </div>
-
-      {/* Radar (left) + Activity Heatmap (right) — 2-column, fixed height */}
-      <div className="grid grid-cols-2 gap-1.5" style={{ height: 220 }}>
-        {/* Radar */}
+      {/* Timeline (left) + Structural Radar (right) — compact top row */}
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: "1fr 165px", height: 185 }}>
+        {/* Timeline */}
         <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col">
           <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
-              Structural Radar
+              Centrality Timeline
+            </span>
+          </div>
+          <div className="flex-1 min-h-0">
+            {hasData ? (
+              <CentralityTimelineD3
+                snapshots={analysisGraphSnapshots}
+                currentIndex={analysisIndex}
+                activeMetric={activeMetric}
+                selectedPieces={selectedPieces}
+                onIndexChange={onIndexChange}
+              />
+            ) : (
+              <EmptyState label="Play moves to build the centrality history" />
+            )}
+          </div>
+        </div>
+
+        {/* Structural Radar */}
+        <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col">
+          <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
+            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
+              Radar
             </span>
           </div>
           <div className="flex-1 min-h-0">
@@ -231,25 +238,25 @@ export function CentralityD3Dashboard({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Activity Heatmap */}
-        <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col">
-          <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
-            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
-              Adjacency Matrix
-            </span>
-          </div>
-          <div className="flex-1 min-h-0">
-            {hasData ? (
-              <CentralityHeatmapD3
-                snapshots={analysisGraphSnapshots}
-                analysisIndex={analysisIndex}
-                selectedPieces={selectedPieces}
-              />
-            ) : (
-              <EmptyState label="No data" />
-            )}
-          </div>
+      {/* Adjacency Matrix — full width, primary panel */}
+      <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col" style={{ height: 260 }}>
+        <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
+          <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
+            Adjacency Matrix
+          </span>
+        </div>
+        <div className="flex-1 min-h-0">
+          {hasData ? (
+            <CentralityHeatmapD3
+              snapshots={analysisGraphSnapshots}
+              analysisIndex={analysisIndex}
+              selectedPieces={selectedPieces}
+            />
+          ) : (
+            <EmptyState label="No data" />
+          )}
         </div>
       </div>
     </div>
@@ -620,25 +627,72 @@ function CentralityRadarD3({
 // Adjacency Matrix Heatmap
 // ---------------------------------------------------------------------------
 
-type PieceKey = string; // e.g. "wp", "bn"
+type PieceKey = string; // e.g. "wp", "wr-a1", "bn-g8"
 type EdgeMode = "attack" | "defense" | "both";
 
-const MATRIX_KEYS: PieceKey[] = [
-  "wp", "wn", "wb", "wr", "wq", "wk",
-  "bp", "bn", "bb", "br", "bq", "bk",
-];
-
-const MATRIX_SYMBOLS: Record<PieceKey, string> = {
-  wp: "♙", wn: "♘", wb: "♗", wr: "♖", wq: "♕", wk: "♔",
-  bp: "♟", bn: "♞", bb: "♝", br: "♜", bq: "♛", bk: "♚",
+// Piece-type letter lookup (uppercase = white, lowercase = black — FEN convention)
+const PIECE_SYMBOL: Record<string, string> = {
+  wp: "P", wn: "N", wb: "B", wr: "R", wq: "Q", wk: "K",
+  bp: "p", bn: "n", bb: "b", br: "r", bq: "q", bk: "k",
 };
 
-const MATRIX_LABELS: Record<PieceKey, string> = {
-  wp: "White Pawn",   wn: "White Knight", wb: "White Bishop",
-  wr: "White Rook",   wq: "White Queen",  wk: "White King",
-  bp: "Black Pawn",   bn: "Black Knight", bb: "Black Bishop",
-  br: "Black Rook",   bq: "Black Queen",  bk: "Black King",
-};
+// Derive a stable matrix key for a node.
+// Pawns (type "p") are aggregated by color — all white pawns share "wp".
+// Every other piece is uniquely identified by color+type+square, e.g. "wr-a1".
+function nodeMatrixKey(color: string, type: string, square: string): string {
+  if (type === "p") return `${color}p`;
+  return `${color}${type}-${square}`;
+}
+
+// Short display label for a matrix key: "Ra1", "ng8", "P", "p" etc.
+function matrixKeySymbol(key: string): string {
+  if (key.length === 2) {
+    // pawn aggregate: "wp" → "P", "bp" → "p"
+    return PIECE_SYMBOL[key] ?? key;
+  }
+  // unique piece: "wr-a1" → "Ra1", "bn-g8" → "ng8"
+  const dashIdx = key.indexOf("-");
+  if (dashIdx === -1) return key;
+  const typeKey = key.slice(0, dashIdx); // "wr"
+  const square = key.slice(dashIdx + 1); // "a1"
+  return (PIECE_SYMBOL[typeKey] ?? typeKey) + square;
+}
+
+// Readable label for tooltip heading
+function matrixKeyLabel(key: string): string {
+  const colorNames: Record<string, string> = { w: "White", b: "Black" };
+  const typeNames: Record<string, string> = {
+    p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King",
+  };
+  if (key.length === 2) {
+    return `${colorNames[key[0] ?? ""] ?? ""} ${typeNames[key[1] ?? ""] ?? key}`;
+  }
+  const dashIdx = key.indexOf("-");
+  const typeKey = dashIdx === -1 ? key : key.slice(0, dashIdx);
+  const square = dashIdx === -1 ? "" : key.slice(dashIdx + 1);
+  const colorPart = colorNames[typeKey[0] ?? ""] ?? "";
+  const typePart = typeNames[typeKey[1] ?? ""] ?? typeKey;
+  const squarePart = square ? ` (${square})` : "";
+  return `${colorPart} ${typePart}${squarePart}`;
+}
+
+// Canonical ordering: white first (p n b r q k), then black.
+// Within a piece type, sort by square alphabetically (file then rank).
+const TYPE_ORDER: Record<string, number> = { p: 0, n: 1, b: 2, r: 3, q: 4, k: 5 };
+function sortMatrixKeys(keys: string[]): string[] {
+  return [...keys].sort((a, b) => {
+    const aColor = a.startsWith("w") ? 0 : 1;
+    const bColor = b.startsWith("w") ? 0 : 1;
+    if (aColor !== bColor) return aColor - bColor;
+    const aType = a[1];
+    const bType = b[1];
+    const aOrd = TYPE_ORDER[aType ?? ""] ?? 9;
+    const bOrd = TYPE_ORDER[bType ?? ""] ?? 9;
+    if (aOrd !== bOrd) return aOrd - bOrd;
+    // Same type: sort by square (aggregate pawn row — no dash — comes first)
+    return a.localeCompare(b);
+  });
+}
 
 function CentralityHeatmapD3({
   snapshots,
@@ -653,53 +707,45 @@ function CentralityHeatmapD3({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [edgeMode, setEdgeMode] = React.useState<EdgeMode>("both");
 
-  // Build separate attack/defense matrices; per-piece-type normalization (divide by piece count)
+  // Derive the row/col keys from the CURRENT snapshot so they reflect actual pieces.
+  // Pawns are aggregated (one row per color); every other piece is a unique square row.
+  const matrixKeys = useMemo<string[]>(() => {
+    const snap = snapshots[analysisIndex];
+    if (!snap) return [];
+    const keySet = new Set<string>();
+    for (const node of snap.nodes) {
+      keySet.add(nodeMatrixKey(node.color, node.type, node.square));
+    }
+    return sortMatrixKeys([...keySet]);
+  }, [snapshots, analysisIndex]);
+
+  // Build attack/defense matrices from the current snapshot only so the matrix
+  // reflects exactly the edges visible on the board at analysisIndex.
   const matrices = useMemo(() => {
-    const attackSum: Record<string, number> = {};
-    const attackCnt: Record<string, number> = {};
-    const defenseSum: Record<string, number> = {};
-    const defenseCnt: Record<string, number> = {};
-    const limit = Math.min(analysisIndex + 1, snapshots.length);
+    const attackRaw: Record<string, number> = {};
+    const defenseRaw: Record<string, number> = {};
+    const snap = snapshots[analysisIndex];
 
-    for (let si = 0; si < limit; si++) {
-      const snap = snapshots[si];
-      if (!snap) continue;
-
-      const bySquare = new Map<string, PieceKey>();
-      const pieceCount = new Map<PieceKey, number>();
+    if (snap) {
+      const squareToKey = new Map<string, string>();
       for (const node of snap.nodes) {
-        const key: PieceKey = `${node.color}${node.type}`;
-        bySquare.set(node.square, key);
-        pieceCount.set(key, (pieceCount.get(key) ?? 0) + 1);
+        squareToKey.set(node.square, nodeMatrixKey(node.color, node.type, node.square));
       }
 
       for (const edge of snap.edges) {
-        const fromKey = bySquare.get(edge.from);
-        const toKey = bySquare.get(edge.to);
+        const fromKey = squareToKey.get(edge.from);
+        const toKey = squareToKey.get(edge.to);
         if (!fromKey || !toKey) continue;
-        const count = pieceCount.get(fromKey) ?? 1;
-        const normWeight = edge.weight / count;
         const cell = `${fromKey}|${toKey}`;
-        const cellRev = `${toKey}|${fromKey}`;
         if (edge.type === "attack") {
-          attackSum[cell] = (attackSum[cell] ?? 0) + normWeight;
-          attackCnt[cell] = (attackCnt[cell] ?? 0) + 1;
-          attackSum[cellRev] = (attackSum[cellRev] ?? 0) + normWeight;
-          attackCnt[cellRev] = (attackCnt[cellRev] ?? 0) + 1;
+          attackRaw[cell] = (attackRaw[cell] ?? 0) + edge.weight;
         } else {
-          defenseSum[cell] = (defenseSum[cell] ?? 0) + normWeight;
-          defenseCnt[cell] = (defenseCnt[cell] ?? 0) + 1;
-          defenseSum[cellRev] = (defenseSum[cellRev] ?? 0) + normWeight;
-          defenseCnt[cellRev] = (defenseCnt[cellRev] ?? 0) + 1;
+          defenseRaw[cell] = (defenseRaw[cell] ?? 0) + edge.weight;
         }
       }
     }
 
-    const buildMatrix = (s: Record<string, number>, c: Record<string, number>) => {
-      const raw: Record<string, number> = {};
-      for (const key of Object.keys(s)) {
-        raw[key] = (s[key] ?? 0) / Math.max(1, c[key] ?? 1);
-      }
+    const buildMatrix = (raw: Record<string, number>) => {
       const maxVal = Math.max(...Object.values(raw), 0.001);
       const normalized: Record<string, number> = {};
       for (const key of Object.keys(raw)) {
@@ -709,28 +755,64 @@ function CentralityHeatmapD3({
     };
 
     return {
-      attack: buildMatrix(attackSum, attackCnt),
-      defense: buildMatrix(defenseSum, defenseCnt),
+      attack: buildMatrix(attackRaw),
+      defense: buildMatrix(defenseRaw),
     };
   }, [snapshots, analysisIndex]);
 
-  const selectedKeys = useMemo<Set<PieceKey>>(() => {
-    if (selectedPieces.length === 0) return new Set(MATRIX_KEYS);
-    return new Set(selectedPieces.map((s): PieceKey => `${s.color}${s.type}`));
-  }, [selectedPieces]);
+  const selectedKeys = useMemo<Set<string>>(() => {
+    if (selectedPieces.length === 0) return new Set(matrixKeys);
+    // Map PieceSelection (color+type) → all matrixKeys matching that type.
+    // Pawns match aggregate key; others match every unique-piece key of that type.
+    const selSet = new Set(selectedPieces.map((s) => `${s.color}${s.type}`));
+    return new Set(
+      matrixKeys.filter((k) => {
+        const typeKey = k.length === 2 ? k : k.slice(0, k.indexOf("-"));
+        return selSet.has(typeKey);
+      }),
+    );
+  }, [selectedPieces, matrixKeys]);
+
+  // Directional snapshot of actual edges at the current analysis index.
+  // Used to populate the per-cell hover tooltip with real weights.
+  type EdgeEntry = { from: string; to: string; weight: number };
+  const currentEdgeMap = useMemo(() => {
+    const snap = snapshots[analysisIndex];
+    const map = new Map<string, { attacks: EdgeEntry[]; defenses: EdgeEntry[] }>();
+    if (!snap) return map;
+    const squareToKey = new Map<string, string>();
+    for (const node of snap.nodes) {
+      squareToKey.set(node.square, nodeMatrixKey(node.color, node.type, node.square));
+    }
+    for (const edge of snap.edges) {
+      const fromKey = squareToKey.get(edge.from);
+      const toKey = squareToKey.get(edge.to);
+      if (!fromKey || !toKey) continue;
+      const cellKey = `${fromKey}|${toKey}`;
+      const existing = map.get(cellKey) ?? { attacks: [], defenses: [] };
+      if (edge.type === "attack") {
+        existing.attacks.push({ from: edge.from, to: edge.to, weight: edge.weight });
+      } else {
+        existing.defenses.push({ from: edge.from, to: edge.to, weight: edge.weight });
+      }
+      map.set(cellKey, existing);
+    }
+    return map;
+  }, [snapshots, analysisIndex]);
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || matrixKeys.length === 0) return;
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
 
-    const N = MATRIX_KEYS.length; // 12
-    const labelW = 20;
-    const labelH = 20;
-    const pad = { top: labelH + 4, left: labelW + 4, right: 6, bottom: 6 };
+    const N = matrixKeys.length;
+    // Label area sized for "Ra1" / "ng8" style letter labels
+    const labelW = 32;
+    const labelH = 32;
+    const pad = { top: labelH + 6, left: labelW + 6, right: 8, bottom: 8 };
     const cw = (width - pad.left - pad.right) / N;
     const ch = (height - pad.top - pad.bottom) / N;
 
@@ -750,8 +832,10 @@ function CentralityHeatmapD3({
     if (edgeMode === "attack") sepStroke = "rgba(251,113,133,0.3)";
     else if (edgeMode === "defense") sepStroke = "rgba(52,211,153,0.3)";
 
-    const sepX = (N / 2) * cw;
-    const sepY = (N / 2) * ch;
+    // Separator between white and black pieces (first black key index)
+    const firstBlackIdx = matrixKeys.findIndex((k) => k.startsWith("b"));
+    const sepX = firstBlackIdx > 0 ? firstBlackIdx * cw : N * 0.5 * cw;
+    const sepY = firstBlackIdx > 0 ? firstBlackIdx * ch : N * 0.5 * ch;
     g.append("line")
       .attr("x1", sepX - 0.5).attr("x2", sepX - 0.5)
       .attr("y1", -labelH).attr("y2", N * ch)
@@ -761,8 +845,8 @@ function CentralityHeatmapD3({
       .attr("x1", -labelW).attr("x2", N * cw)
       .attr("stroke", sepStroke).attr("stroke-width", 1);
 
-    MATRIX_KEYS.forEach((rowKey, ri) => {
-      MATRIX_KEYS.forEach((colKey, ci) => {
+    matrixKeys.forEach((rowKey, ri) => {
+      matrixKeys.forEach((colKey, ci) => {
         const cellKey = `${rowKey}|${colKey}`;
         const v = getVal(cellKey);
         const rowActive = selectedKeys.has(rowKey);
@@ -770,22 +854,32 @@ function CentralityHeatmapD3({
         const bothActive = rowActive && colActive;
         const active = rowActive || colActive;
 
+        // In "both" mode each cell picks its own color based on the dominant
+        // edge type so attack cells are red and defense cells are green.
+        const atkN = matrices.attack.normalized[cellKey] ?? 0;
+        const defN = matrices.defense.normalized[cellKey] ?? 0;
+        let cellRgb = rgb;
+        if (edgeMode === "both" && (atkN > 0 || defN > 0)) {
+          cellRgb = atkN >= defN ? "251,113,133" : "52,211,153";
+        }
+        const dominantV = edgeMode === "both" ? Math.max(atkN, defN) : v;
+
         let fill = `rgba(30,41,59,${0.2 + v * 0.1})`;
-        if (bothActive) fill = `rgba(${rgb},${Math.max(0.06, v * 0.88)})`;
-        else if (active) fill = `rgba(${rgb},${Math.max(0.03, v * 0.55)})`;
+        if (bothActive) fill = `rgba(${cellRgb},${Math.max(0.06, dominantV * 0.88)})`;
+        else if (active) fill = `rgba(${cellRgb},${Math.max(0.03, dominantV * 0.55)})`;
 
         g.append("rect")
           .attr("x", ci * cw + 0.5).attr("y", ri * ch + 0.5)
           .attr("width", cw - 1).attr("height", ch - 1)
           .attr("rx", 1)
           .attr("fill", fill)
-          .attr("stroke", bothActive && v > 0.3 ? `rgba(${rgb},0.5)` : "rgba(15,23,42,0.0)")
+          .attr("stroke", bothActive && dominantV > 0.3 ? `rgba(${cellRgb},0.5)` : "rgba(15,23,42,0.0)")
           .attr("stroke-width", 0.5)
-          .style("filter", bothActive && v > 0.5 ? `drop-shadow(0 0 2px rgba(${rgb},${v * 0.6}))` : "none");
+          .style("filter", bothActive && dominantV > 0.5 ? `drop-shadow(0 0 2px rgba(${cellRgb},${dominantV * 0.6}))` : "none");
       });
     });
 
-    MATRIX_KEYS.forEach((key, ci) => {
+    matrixKeys.forEach((key, ci) => {
       const isWhite = key.startsWith("w");
       const active = selectedKeys.has(key);
       const pieceHeaderColor = isWhite ? "#fbbf24" : "#38bdf8";
@@ -793,49 +887,57 @@ function CentralityHeatmapD3({
       g.append("text")
         .attr("x", ci * cw + cw / 2).attr("y", -4)
         .attr("text-anchor", "middle").attr("dominant-baseline", "auto")
-        .attr("font-size", `${Math.min(cw * 0.72, 9)}px`)
+        .attr("font-size", `${Math.min(cw * 0.72, 11)}px`)
         .attr("fill", colFill)
         .attr("font-family", "monospace").attr("font-weight", "bold")
-        .text(MATRIX_SYMBOLS[key] ?? key);
+        .text(matrixKeySymbol(key));
     });
 
-    MATRIX_KEYS.forEach((key, ri) => {
+    matrixKeys.forEach((key, ri) => {
       const isWhite = key.startsWith("w");
       const active = selectedKeys.has(key);
       const pieceRowColor = isWhite ? "#fbbf24" : "#38bdf8";
       const rowFill = active ? pieceRowColor : "rgba(100,116,139,0.45)";
       g.append("text")
-        .attr("x", -3).attr("y", ri * ch + ch / 2)
+        .attr("x", -4).attr("y", ri * ch + ch / 2)
         .attr("text-anchor", "end").attr("dominant-baseline", "middle")
-        .attr("font-size", `${Math.min(ch * 0.72, 9)}px`)
+        .attr("font-size", `${Math.min(ch * 0.72, 11)}px`)
         .attr("fill", rowFill)
         .attr("font-family", "monospace").attr("font-weight", "bold")
-        .text(MATRIX_SYMBOLS[key] ?? key);
+        .text(matrixKeySymbol(key));
     });
 
+    // White / Black section headers
+    const whiteCount = firstBlackIdx > 0 ? firstBlackIdx : Math.floor(N / 2);
+    const blackCount = N - whiteCount;
     g.append("text")
-      .attr("x", (N / 4) * cw).attr("y", -labelH)
+      .attr("x", (whiteCount / 2) * cw).attr("y", -labelH)
       .attr("text-anchor", "middle").attr("dominant-baseline", "hanging")
       .attr("font-size", "7px").attr("fill", "rgba(251,191,36,0.45)")
       .attr("font-family", "monospace").attr("font-weight", "black")
       .attr("letter-spacing", "0.08em").text("WHITE →");
     g.append("text")
-      .attr("x", (N / 4) * 3 * cw).attr("y", -labelH)
+      .attr("x", (whiteCount + blackCount / 2) * cw).attr("y", -labelH)
       .attr("text-anchor", "middle").attr("dominant-baseline", "hanging")
       .attr("font-size", "7px").attr("fill", "rgba(56,189,248,0.45)")
       .attr("font-family", "monospace").attr("font-weight", "black")
       .attr("letter-spacing", "0.08em").text("BLACK →");
 
-    type CellDatum = { rowKey: string; colKey: string; ri: number; ci: number; atkRaw: number; defRaw: number };
-    const cellData: CellDatum[] = MATRIX_KEYS.flatMap((rowKey, ri) =>
-      MATRIX_KEYS.map((colKey, ci) => ({
-        rowKey,
-        colKey,
-        ri,
-        ci,
-        atkRaw: matrices.attack.raw[`${rowKey}|${colKey}`] ?? 0,
-        defRaw: matrices.defense.raw[`${rowKey}|${colKey}`] ?? 0,
-      })),
+    type CellDatumEdge = { from: string; to: string; weight: number };
+    type CellDatum = { rowKey: string; colKey: string; ri: number; ci: number; currentAttacks: CellDatumEdge[]; currentDefenses: CellDatumEdge[] };
+    const cellData: CellDatum[] = matrixKeys.flatMap((rowKey, ri) =>
+      matrixKeys.map((colKey, ci) => {
+        const cellKey = `${rowKey}|${colKey}`;
+        const current = currentEdgeMap.get(cellKey);
+        return {
+          rowKey,
+          colKey,
+          ri,
+          ci,
+          currentAttacks: current?.attacks ?? [],
+          currentDefenses: current?.defenses ?? [],
+        };
+      }),
     );
 
     const tooltipEl = tooltipRef.current;
@@ -849,26 +951,35 @@ function CentralityHeatmapD3({
       .attr("width", cw)
       .attr("height", ch)
       .attr("fill", "transparent")
-      .style("cursor", (d) => (d.atkRaw > 0 || d.defRaw > 0 ? "crosshair" : "default"))
+      .style("cursor", (d) => (d.currentAttacks.length > 0 || d.currentDefenses.length > 0 ? "crosshair" : "default"))
       .on("mousemove", (event: MouseEvent, d) => {
         if (!tooltipEl) return;
         tooltipEl.style.display = "block";
         tooltipEl.style.left = `${event.offsetX + 8}px`;
         tooltipEl.style.top = `${event.offsetY - 40}px`;
-        tooltipEl.innerHTML = [
-          `<span style="color:#94a3b8;font-weight:900">${MATRIX_LABELS[d.rowKey]} → ${MATRIX_LABELS[d.colKey]}</span>`,
-          `<span style="color:#f87171">⚔ atk: ${d.atkRaw.toFixed(3)}</span>`,
-          `<span style="color:#34d399">🛡 def: ${d.defRaw.toFixed(3)}</span>`,
-        ].join("<br/>");
+        const lines: string[] = [
+          `<span style="color:#94a3b8;font-weight:900">${matrixKeyLabel(d.rowKey)} → ${matrixKeyLabel(d.colKey)}</span>`,
+        ];
+        for (const e of d.currentAttacks) {
+          lines.push(`<span style="color:#f87171">atk ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`);
+        }
+        for (const e of d.currentDefenses) {
+          lines.push(`<span style="color:#34d399">def ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`);
+        }
+        if (d.currentAttacks.length === 0 && d.currentDefenses.length === 0) {
+          lines.push(`<span style="color:#475569">no active relation</span>`);
+        }
+        tooltipEl.innerHTML = lines.join("<br/>");
       })
       .on("mouseleave", () => {
         if (tooltipEl) tooltipEl.style.display = "none";
       });
-  }, [matrices, edgeMode, selectedKeys]);
+  }, [matrices, edgeMode, selectedKeys, currentEdgeMap, matrixKeys]);
 
   const hasData =
-    Object.keys(matrices.attack.raw).length > 0 ||
-    Object.keys(matrices.defense.raw).length > 0;
+    matrixKeys.length > 0 &&
+    (Object.keys(matrices.attack.raw).length > 0 ||
+      Object.keys(matrices.defense.raw).length > 0);
   if (!hasData) return <EmptyState label="Play moves to build the adjacency matrix" />;
 
   const getModeClass = (m: EdgeMode) => {
@@ -879,9 +990,9 @@ function CentralityHeatmapD3({
   };
 
   const getModeLabel = (m: EdgeMode) => {
-    if (m === "attack") return "⚔ Atk";
-    if (m === "defense") return "🛡 Def";
-    return "Both";
+    if (m === "attack") return "ATK";
+    if (m === "defense") return "DEF";
+    return "BOTH";
   };
 
   return (
