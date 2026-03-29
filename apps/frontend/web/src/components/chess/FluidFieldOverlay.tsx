@@ -77,11 +77,14 @@ function renderInfluenceMap(
   influenceMap: InfluenceMap,
   boardWidth: number,
   orientation: "white" | "black",
+  pieceSquares: Set<string>,
 ): React.ReactNode[] {
   const squareSize = boardWidth / 8;
   const elements: React.ReactNode[] = [];
 
   for (const sq of SQUARES) {
+    // Skip squares that have pieces — pieces must always sit on a clean background.
+    if (pieceSquares.has(sq)) continue;
     const infl = influenceMap.get(sq);
     if (!infl || (infl.whiteWeight < 0.001 && infl.blackWeight < 0.001)) continue;
 
@@ -109,18 +112,7 @@ function renderInfluenceMap(
             style={{ transition: "fill 400ms ease-out" }}
           />
         )}
-        {infl.hasKnightInfluence && (
-          <circle
-            cx={x + squareSize / 2}
-            cy={y + squareSize / 2}
-            r={squareSize * 0.38}
-            fill="none"
-            stroke="rgba(167,139,250,0.65)"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-            style={{ transition: "r 400ms ease-out, opacity 400ms ease-out" }}
-          />
-        )}
+
       </g>,
     );
   }
@@ -145,9 +137,14 @@ export const FluidFieldOverlay = React.memo(function FluidFieldOverlay({
     return result.isOk() ? result.value : new Map<string, SquareInfluence>();
   }, [snapshot.metadata.fen]);
 
+  const pieceSquares = useMemo(
+    () => new Set(snapshot.nodes.map((n) => n.square)),
+    [snapshot.nodes],
+  );
+
   const cells = useMemo(
-    () => renderInfluenceMap(influenceMap, boardWidth, orientation),
-    [influenceMap, boardWidth, orientation],
+    () => renderInfluenceMap(influenceMap, boardWidth, orientation, pieceSquares),
+    [influenceMap, boardWidth, orientation, pieceSquares],
   );
 
   return (

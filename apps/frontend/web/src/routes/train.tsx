@@ -14,6 +14,7 @@ import {
   CommunityTiles,
   CentralityD3Dashboard,
   TraditionalMetricsDashboard,
+  PositionDynamicsPanel,
   CommunityLineageGraph,
   DashboardHeader,
   FluidFieldOverlay,
@@ -34,8 +35,7 @@ function TrainPage() {
   const [visionMode, setVisionMode] = useState<"graph" | "classic">("graph");
   const [leftWidthPct, setLeftWidthPct] = useState(50);
   const [highlightSquares, setHighlightSquares] = useState<Set<string>>(new Set());
-  const [showFluidField, setShowFluidField] = useState(false);
-  const [fluidFieldOpacity, setFluidFieldOpacity] = useState(0.4);
+  const [fluidFieldOpacity] = useState(0.75);
 
   const fen = useGameStore((s) => s.fen);
   const pgn = useGameStore((s) => s.pgn);
@@ -190,32 +190,7 @@ function TrainPage() {
                 New Game
               </button>
             </div>
-            <div className="h-4 w-px bg-slate-800" />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowFluidField((v) => !v)}
-                className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
-                  showFluidField
-                    ? "bg-amber-600/20 text-amber-300 border-amber-700/50"
-                    : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                }`}
-              >
-                Fluid
-              </button>
-              {showFluidField && (
-                <>
-                  <input
-                    type="range" min={0} max={100} step={5}
-                    value={Math.round(fluidFieldOpacity * 100)}
-                    onChange={(e) => setFluidFieldOpacity(Number(e.target.value) / 100)}
-                    className="w-16 accent-amber-500 h-1 bg-slate-800 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-[10px] font-mono text-amber-400 w-8 text-right">
-                    {Math.round(fluidFieldOpacity * 100)}%
-                  </span>
-                </>
-              )}
-            </div>
+
           </div>
 
           {/* Board — grows to fill remaining space */}
@@ -231,7 +206,7 @@ function TrainPage() {
               centralityMetric={centralityMetric}
               highlightSquares={highlightSquares}
               onPieceDrop={handlePieceDrop}
-              showFluidField={showFluidField}
+              showFluidField={visionMode === "graph"}
               fluidFieldOpacity={fluidFieldOpacity}
             />
 
@@ -293,6 +268,11 @@ function TrainPage() {
           {/* Traditional metrics strip */}
           <div className="flex-shrink-0">
             <TraditionalMetricsDashboard fen={fen} compact={true} />
+          </div>
+
+          {/* Position dynamics (fragility + tension) */}
+          <div className="flex-shrink-0">
+            <PositionDynamicsPanel snapshot={graphSnapshot} />
           </div>
 
           {/* Topology (timeline + radar + force in internal grid) */}
@@ -405,7 +385,7 @@ function BoardSizer({
             fen={fen}
             hintMove={null}
             weightThreshold={0.1}
-            showDominance={true}
+            showDominance={false}
           />
         )}
       </ChessBoard>

@@ -30,6 +30,10 @@ import {
   computeClosenessCentrality,
   computePageRankCentrality,
 } from "#centrality";
+import {
+  computePositionFragility,
+  computeStrategicTension,
+} from "#position-metrics";
 
 // ---------------------------------------------------------------------------
 // Step 1: Parse pieces from FEN
@@ -297,12 +301,33 @@ export function buildGraph(fen: string): Result<GraphSnapshot, Error> {
       node.centralityPageRank = pageRank.get(node.square) ?? 0;
     }
 
+    // Step 7: Apply piece-value weighting.
+    // Scale each centrality score by (pieceValue / maxPieceValue) so that
+    // high-value pieces (queens, rooks) contribute proportionally more than
+    // pawns. The king is capped at the queen's value to avoid distorting the
+    // scale — a king's "value" is a sentinel (1000) not a material signal.
+    const MAX_PIECE_WEIGHT = 9; // queen value — reference ceiling
+    for (const node of nodes) {
+      const weight = Math.min(node.value, MAX_PIECE_WEIGHT) / MAX_PIECE_WEIGHT;
+      node.centralityBetweenness *= weight;
+      node.centralityDegree      *= weight;
+      node.centralityWeighted    *= weight;
+      node.centralityCloseness   *= weight;
+      node.centralityPageRank    *= weight;
+    }
+
+    // Step 8: Position-level metrics
+    const positionFragility = computePositionFragility(nodes, edges);
+    const strategicTension = computeStrategicTension(nodes, edges);
+
     return ok({
       nodes,
       edges,
       metadata: {
         fen,
         ply: fenToPly(fen),
+        positionFragility,
+        strategicTension,
       },
     });
   } catch (error: unknown) {

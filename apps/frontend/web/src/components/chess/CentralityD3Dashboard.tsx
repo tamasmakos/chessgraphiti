@@ -92,6 +92,12 @@ const ACTIVE_METRIC_OPTIONS: ActiveMetric[] = ["weighted", "degree", "betweennes
 const WHITE_PIECES_COLOR = "#f1f5f9";
 const BLACK_PIECES_COLOR = "#818cf8";
 
+/** Per-piece-type colors for timeline lines. White pieces are bright; black pieces are muted/cool. */
+const PIECE_LINE_COLORS: Record<string, string> = {
+  wk: "#f472b6", wq: "#facc15", wr: "#22d3ee", wb: "#34d399", wn: "#fb923c", wp: "#94a3b8",
+  bk: "#e879f9", bq: "#c084fc", br: "#818cf8", bb: "#6ee7b7", bn: "#fdba74", bp: "#475569",
+};
+
 function MetricSelector({
   activeMetric,
   onChange,
@@ -298,18 +304,10 @@ function CentralityTimelineD3({
   const data = useMemo(() => {
     const backgroundSeries: Record<string, number[]> = {};
     for (const m of ALL_METRICS) backgroundSeries[m] = new Array(snapshots.length).fill(0) as number[];
-    const whiteMeans = new Array(snapshots.length).fill(0) as number[];
-    const whiteStds  = new Array(snapshots.length).fill(0) as number[];
-    const blackMeans = new Array(snapshots.length).fill(0) as number[];
-    const blackStds  = new Array(snapshots.length).fill(0) as number[];
 
-    const computeBand = (nodes: GraphNode[], metric: ActiveMetric) => {
-      if (nodes.length === 0) return { mean: 0, std: 0 };
-      const scores = nodes.map((n) => getMetricValue(n, metric));
-      const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-      const variance = scores.reduce((s, v) => s + (v - mean) ** 2, 0) / scores.length;
-      return { mean, std: Math.sqrt(variance) };
-    };
+    // One line per color+type (e.g. "wq", "br"). Multiple same-type pieces are averaged.
+    const pieceLineVals = new Map<string, number[]>(); // key -> sum per step
+    const pieceLineCnts = new Map<string, number[]>(); // key -> count per step
 
     for (let i = 0; i < snapshots.length; i++) {
       const snap = snapshots[i];
@@ -320,21 +318,47 @@ function CentralityTimelineD3({
         const avg = allFiltered.reduce((s, n) => s + getMetricValue(n, m), 0) / allFiltered.length;
         (backgroundSeries[m] as number[])[i] = avg;
       }
-      const wb = computeBand(allFiltered.filter((n) => n.color === "w"), activeMetric);
-      const bb = computeBand(allFiltered.filter((n) => n.color === "b"), activeMetric);
-      whiteMeans[i] = wb.mean;
-      whiteStds[i]  = wb.std;
-      blackMeans[i] = bb.mean;
-      blackStds[i]  = bb.std;
+      for (const node of allFiltered) {
+        const key = `${node.color}${node.type}`;
+        if (!pieceLineVals.has(key)) {
+          pieceLineVals.set(key, new Array(snapshots.length).fill(0) as number[]);
+          pieceLineCnts.set(key, new Array(snapshots.length).fill(0) as number[]);
+        }
+        const vals = pieceLineVals.get(key)!;
+        const cnts = pieceLineCnts.get(key)!;
+        vals[i] = (vals[i] ?? 0) + getMetricValue(node, activeMetric);
+        cnts[i] = (cnts[i] ?? 0) + 1;
+      }
     }
+
+    const PIECE_TYPE_ORDER: Record<string, number> = { k: 0, q: 1, r: 2, b: 3, n: 4, p: 5 };
+    const PIECE_TYPE_NAMES: Record<string, string> = { k: "King", q: "Queen", r: "Rook", b: "Bishop", n: "Knight", p: "Pawn" };
+    const pieceLines = [...pieceLineVals.entries()]
+      .map(([key, sums]) => {
+        const cnts = pieceLineCnts.get(key) ?? [];
+        const values = sums.map((s, i) => {
+          const c = cnts[i] ?? 0;
+          return c > 0 ? s / c : 0;
+        });
+        const pieceType = key[1] ?? "p";
+        const isWhite = key.startsWith("w");
+        const label = isWhite ? pieceType.toUpperCase() : pieceType;
+        const fullName = `${isWhite ? "White" : "Black"} ${PIECE_TYPE_NAMES[pieceType] ?? pieceType}`;
+        return { key, label, fullName, color: PIECE_LINE_COLORS[key] ?? "#6366f1", values };
+      })
+      .sort((a, b) => {
+        const aW = a.key.startsWith("w") ? 0 : 1;
+        const bW = b.key.startsWith("w") ? 0 : 1;
+        if (aW !== bW) return aW - bW;
+        return (PIECE_TYPE_ORDER[a.key[1] ?? ""] ?? 9) - (PIECE_TYPE_ORDER[b.key[1] ?? ""] ?? 9);
+      });
 
     const maxVal = Math.max(
       ...ALL_METRICS.flatMap((m) => backgroundSeries[m] as number[]),
-      ...whiteMeans.map((mv, i) => mv + (whiteStds[i] ?? 0)),
-      ...blackMeans.map((mv, i) => mv + (blackStds[i] ?? 0)),
+      ...pieceLines.flatMap((pl) => pl.values),
       0.1,
     );
-    return { backgroundSeries, whiteMeans, whiteStds, blackMeans, blackStds, maxVal };
+    return { backgroundSeries, pieceLines, maxVal };
   }, [snapshots, selectedPieces, activeMetric]);
 
   useEffect(() => {
@@ -389,48 +413,33 @@ function CentralityTimelineD3({
         .text(METRIC_BUTTON[met] ?? met);
     });
 
-    // White and black variance bands + mean lines
-    const hasWhiteData = data.whiteMeans.some((v) => v > 0);
-    const hasBlackData = data.blackMeans.some((v) => v > 0);
+    // Individual piece-type lines (one per color+type, e.g. wQ, bR)
+    for (const pl of data.pieceLines) {
+      if (!pl.values.some((v) => v > 0)) continue;
+      g.append("path").datum(pl.values)
+        .attr("fill", "none")
+        .attr("stroke", pl.color)
+        .attr("stroke-width", 1.5)
+        .attr("d", line as any)
+        .attr("opacity", 0.88)
+        .style("filter", `drop-shadow(0 0 2px ${pl.color}55)`);
 
-    const makeAreaGen = (means: number[], stds: number[]) =>
-      d3.area<number>()
-        .x((_, i) => x(i))
-        .y0((_, i) => y(Math.max(0, (means[i] ?? 0) - (stds[i] ?? 0))))
-        .y1((_, i) => y((means[i] ?? 0) + (stds[i] ?? 0)))
-        .curve(d3.curveMonotoneX);
-
-    if (hasWhiteData) {
-      g.append("path").datum(data.whiteMeans)
-        .attr("fill", `${WHITE_PIECES_COLOR}18`).attr("stroke", "none")
-        .attr("d", makeAreaGen(data.whiteMeans, data.whiteStds) as any);
-      g.append("path").datum(data.whiteMeans)
-        .attr("fill", "none").attr("stroke", WHITE_PIECES_COLOR).attr("stroke-width", 2)
-        .attr("d", line as any).attr("opacity", 0.9)
-        .style("filter", `drop-shadow(0 0 3px ${WHITE_PIECES_COLOR}66)`);
-      const lastW = data.whiteMeans[snapshots.length - 1];
-      if (lastW !== undefined && lastW > 0) {
-        g.append("text")
-          .attr("x", iw + 4).attr("y", y(lastW)).attr("dy", "0.35em")
-          .attr("font-size", "7px").attr("fill", WHITE_PIECES_COLOR)
-          .attr("font-family", "monospace").attr("font-weight", "bold").text("W");
+      // Label at the last non-zero data point
+      let lastIdx = -1;
+      for (let li = pl.values.length - 1; li >= 0; li--) {
+        if ((pl.values[li] ?? 0) > 0) { lastIdx = li; break; }
       }
-    }
-
-    if (hasBlackData) {
-      g.append("path").datum(data.blackMeans)
-        .attr("fill", `${BLACK_PIECES_COLOR}18`).attr("stroke", "none")
-        .attr("d", makeAreaGen(data.blackMeans, data.blackStds) as any);
-      g.append("path").datum(data.blackMeans)
-        .attr("fill", "none").attr("stroke", BLACK_PIECES_COLOR).attr("stroke-width", 2)
-        .attr("d", line as any).attr("opacity", 0.9)
-        .style("filter", `drop-shadow(0 0 3px ${BLACK_PIECES_COLOR}66)`);
-      const lastB = data.blackMeans[snapshots.length - 1];
-      if (lastB !== undefined && lastB > 0) {
+      const lastVal = lastIdx >= 0 ? (pl.values[lastIdx] ?? 0) : 0;
+      if (lastVal > 0) {
         g.append("text")
-          .attr("x", iw + 4).attr("y", y(lastB)).attr("dy", "0.35em")
-          .attr("font-size", "7px").attr("fill", BLACK_PIECES_COLOR)
-          .attr("font-family", "monospace").attr("font-weight", "bold").text("B");
+          .attr("x", iw + 4)
+          .attr("y", y(lastVal))
+          .attr("dy", "0.35em")
+          .attr("font-size", "7px")
+          .attr("fill", pl.color)
+          .attr("font-family", "monospace")
+          .attr("font-weight", "bold")
+          .text(pl.label);
       }
     }
 
@@ -455,13 +464,11 @@ function CentralityTimelineD3({
           const step = Math.round(x.invert(mx - m.left));
           if (step < 0 || step >= snapshots.length) return;
 
-          const wMean = data.whiteMeans[step] ?? 0;
-          const wStd  = data.whiteStds[step]  ?? 0;
-          const bMean = data.blackMeans[step] ?? 0;
-          const bStd  = data.blackStds[step]  ?? 0;
           let content = `<div style="font-size:9px;font-weight:900;color:#94a3b8;margin-bottom:2px">${METRIC_INTUITIVE[activeMetric]} · STEP ${step}</div>`;
-          if (wMean > 0) content += `<span style="color:${WHITE_PIECES_COLOR}">White: ${wMean.toFixed(3)} ± ${wStd.toFixed(3)}</span><br/>`;
-          if (bMean > 0) content += `<span style="color:${BLACK_PIECES_COLOR}">Black: ${bMean.toFixed(3)} ± ${bStd.toFixed(3)}</span>`;
+          for (const pl of data.pieceLines) {
+            const val = pl.values[step] ?? 0;
+            if (val > 0) content += `<span style="color:${pl.color}">${pl.fullName}: ${val.toFixed(3)}</span><br/>`;
+          }
 
           const px = x(step) + m.left;
           const tip = tooltipRef.current;
@@ -476,7 +483,7 @@ function CentralityTimelineD3({
     }
   }, [data, currentIndex, snapshots.length, onIndexChange, activeMetric]);
 
-  const isEmpty = data.whiteMeans.every((v) => v === 0) && data.blackMeans.every((v) => v === 0);
+  const isEmpty = data.pieceLines.every((pl) => pl.values.every((v) => v === 0));
 
   if (isEmpty) return <EmptyState label="Play moves to see centrality history" />;
 

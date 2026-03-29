@@ -16,6 +16,7 @@
     "./centrality": "./src/centrality.ts",
     "./engine": "./src/engine.ts",
     "./influence": "./src/influence.ts",
+    "./position-metrics": "./src/position-metrics.ts",
 
     "./opening-db/ecoDatabase": "./src/opening-db/ecoDatabase.ts"
   },

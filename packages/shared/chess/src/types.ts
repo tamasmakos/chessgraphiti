@@ -59,9 +59,16 @@ export const GraphNodeSchema = z.object({
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
+const PositionScoreSchema = z.object({
+  white: z.number(),
+  black: z.number(),
+});
+
 export const GraphMetadataSchema = z.object({
   fen: z.string(),
   ply: z.number(),
+  positionFragility: PositionScoreSchema.optional(),
+  strategicTension: PositionScoreSchema.optional(),
 });
 export type GraphMetadata = z.infer<typeof GraphMetadataSchema>;
 
