@@ -19,6 +19,7 @@ import {
   DashboardHeader,
   FluidFieldOverlay,
 } from "#components/chess/index";
+import { MeshWarpOverlay } from "#components/chess/MeshWarpOverlay";
 import { useGameStore } from "#stores/game-store";
 import { useStockfish } from "#hooks/use-stockfish";
 import { useApi } from "#lib/api";
@@ -206,7 +207,7 @@ function TrainPage() {
               centralityMetric={centralityMetric}
               highlightSquares={highlightSquares}
               onPieceDrop={handlePieceDrop}
-              showFluidField={visionMode === "graph"}
+              showFluidField={false}
               fluidFieldOpacity={fluidFieldOpacity}
             />
 
@@ -375,6 +376,14 @@ function BoardSizer({
             centralityMetric={centralityMetric}
             stableColorMap={stableColorMap}
             changedSquares={currentTransition?.changedSquares ?? []}
+          />
+        )}
+        {shouldRenderGraph && graphSnapshot && (
+          <MeshWarpOverlay
+            graphSnapshot={graphSnapshot}
+            centralityMetric={centralityMetric}
+            boardWidth={boardWidth}
+            orientation={orientation}
           />
         )}
         {shouldRenderGraph && graphSnapshot && (
