@@ -1,8 +1,10 @@
 interface EvalBarProps {
   /** Centipawn score. Positive = white advantage, negative = black advantage. */
-  score: number;
+  readonly score: number;
   /** Mate in N moves. Positive = white mates, negative = black mates. */
-  mate?: number;
+  readonly mate?: number;
+  /** White win probability (0-100) from the GNN model. When present, takes priority over the CP formula. */
+  readonly winProb?: number;
 }
 
 /**
@@ -11,14 +13,14 @@ interface EvalBarProps {
  * White portion grows from the left; black portion fills the remainder.
  * A thin center marker at 50% shows the equal-position baseline.
  */
-export function EvalBar({ score, mate }: EvalBarProps) {
-  const whitePct = computeWhitePercent(score, mate);
+export function EvalBar({ score, mate, winProb }: EvalBarProps) {
+  const whitePct = winProb ?? computeWhitePercent(score, mate);
 
   return (
     <div className="relative h-2 w-full rounded-full bg-slate-700 overflow-hidden">
       {/* White portion */}
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-white transition-all duration-700"
+        className="absolute inset-y-0 left-0 rounded-full bg-white transition-[width] duration-300"
         style={{ width: `${whitePct}%` }}
       />
 

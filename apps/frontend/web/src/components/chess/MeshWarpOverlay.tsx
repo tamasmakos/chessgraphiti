@@ -1,6 +1,5 @@
 import type { GraphSnapshot } from "@yourcompany/chess/types";
 import React, { useMemo } from "react";
-import type { CentralityMetric } from "#stores/game-store";
 import {
 	computeElevationGrid,
 	tileAvgElevation,
@@ -16,7 +15,6 @@ import {
 
 interface MeshWarpOverlayProps {
 	graphSnapshot: GraphSnapshot;
-	centralityMetric: CentralityMetric;
 	boardWidth: number;
 	orientation: "white" | "black";
 }
@@ -51,7 +49,7 @@ function teamColor(wElev: number, bElev: number): Rgb {
 function wallFill(wElev: number, bElev: number, totalElev: number, minElev = 0.015): string | null {
 	if (totalElev < minElev) return null;
 	const { r, g, b } = teamColor(wElev, bElev);
-	const alpha = Math.min(0.06 + totalElev * 0.28, 0.36);
+	const alpha = Math.min(0.04 + totalElev * 0.18, 0.22);
 	return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
 }
 
@@ -59,7 +57,15 @@ function wallFill(wElev: number, bElev: number, totalElev: number, minElev = 0.0
 function wallEdge(wElev: number, bElev: number, totalElev: number, minElev = 0.015): string | null {
 	if (totalElev < minElev) return null;
 	const { r, g, b } = teamColor(wElev, bElev);
-	const alpha = Math.min(0.55 + totalElev * 0.42, 0.97);
+	const alpha = Math.min(0.38 + totalElev * 0.3, 0.68);
+	return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+}
+
+/** Coloured fill for the top face — the primary legibility signal. */
+function topFill(wElev: number, bElev: number, totalElev: number, minElev = 0.015): string | null {
+	if (totalElev < minElev) return null;
+	const { r, g, b } = teamColor(wElev, bElev);
+	const alpha = Math.min(0.05 + totalElev * 0.1, 0.18);
 	return `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
 }
 
@@ -84,16 +90,15 @@ function wallEdge(wElev: number, bElev: number, totalElev: number, minElev = 0.0
  */
 export const MeshWarpOverlay = React.memo(function MeshWarpOverlay({
 	graphSnapshot,
-	centralityMetric,
 	boardWidth,
 	orientation,
 }: MeshWarpOverlayProps) {
 	const polygons = useMemo(() => {
 		const tileSize = boardWidth / 8;
-		const liftY = tileSize * 0.90; // tall mountains
-		const liftX = tileSize * 0.60; // oblique depth, scaled per direction from centre
+		const liftY = tileSize * 0.65; // taller hills for wave contrast
+		const liftX = tileSize * 0.32; // slightly deeper oblique to match increased height
 
-		const grid = computeElevationGrid(graphSnapshot, centralityMetric, orientation);
+		const grid = computeElevationGrid(graphSnapshot, orientation);
 
 		const result: React.ReactNode[] = [];
 
@@ -121,7 +126,7 @@ export const MeshWarpOverlay = React.memo(function MeshWarpOverlay({
 				const xEdge    = wallEdge(xW, xB, xElev);
 				const southFill = wallFill(bottomW, bottomB, bottomElev);
 				const southEdge = wallEdge(bottomW, bottomB, bottomElev);
-				const hasElevation = totalAvg > 0.015;
+				const tFill = topFill(wAvg, bAvg, totalAvg);
 
 				// Painter order: x-wall → south → top face
 				if (xFill) {
@@ -150,12 +155,12 @@ export const MeshWarpOverlay = React.memo(function MeshWarpOverlay({
 						/>,
 					);
 				}
-				if (hasElevation) {
+				if (tFill) {
 					result.push(
 						<polygon
 							key={`t-${col}-${row}`}
 							points={tileTopPoints(grid.total, col, row, tileSize, liftY, liftX)}
-							fill="none"
+							fill={tFill}
 						/>,
 					);
 				}
@@ -163,7 +168,7 @@ export const MeshWarpOverlay = React.memo(function MeshWarpOverlay({
 		}
 
 		return result;
-	}, [graphSnapshot, centralityMetric, boardWidth, orientation]);
+	}, [graphSnapshot, boardWidth, orientation]);
 
 	return (
 		<svg

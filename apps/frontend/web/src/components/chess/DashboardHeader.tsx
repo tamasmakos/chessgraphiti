@@ -121,7 +121,7 @@ export function DashboardHeader({
       <div className="flex items-center bg-slate-900/70 p-0.5 rounded-lg border border-slate-800/60">
         {(["graph", "classic"] as const).map((m) => (
           <button key={m} type="button" onClick={() => onSetVisionMode(m)}
-            className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-tight rounded-md transition-all ${
+            className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-tight rounded-md cg-pressable ${
               visionMode === m ? "bg-slate-700 text-white shadow" : "text-slate-500 hover:text-slate-300"
             }`}>
             {m === "graph" ? "Graphity" : "Classic"}

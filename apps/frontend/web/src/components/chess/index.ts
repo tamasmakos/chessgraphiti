@@ -8,3 +8,5 @@ export { PositionDynamicsPanel } from "./PositionDynamicsPanel";
 export { CentralityD3Dashboard } from "./CentralityD3Dashboard";
 export { DashboardHeader } from "./DashboardHeader";
 export { FluidFieldOverlay } from "./FluidFieldOverlay";
+export { TutorArrowOverlay } from "./TutorArrowOverlay";
+export { TutorRankingPanel } from "./TutorRankingPanel";

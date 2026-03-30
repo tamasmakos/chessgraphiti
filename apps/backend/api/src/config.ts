@@ -9,6 +9,13 @@ const apiConfigSchema = z.object({
   requestLogging: z.boolean().optional().default(false),
   baseServiceUrl: z.string().min(1, "BASE_SERVICE_URL is required"),
   trustedOrigins: z.array(z.string()).min(1, "TRUSTED_ORIGINS is required"),
+  engine: z
+    .object({
+      modelsDir: z.string().default("models"),
+      booksDir: z.string().default("books"),
+      scriptPath: z.string().default("uci_engine.py"),
+    })
+    .default({}),
   cors: z.object({
     origins: z.array(z.string()).min(1, "CORS_ORIGINS is required"),
   }),
@@ -55,6 +62,11 @@ export const appConfig = apiConfigSchema.parse({
         : undefined,
   },
   trustedOrigins: process.env.TRUSTED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean),
+  engine: {
+    modelsDir: process.env.ENGINE_MODELS_DIR ?? "models",
+    booksDir: process.env.ENGINE_BOOKS_DIR ?? "books",
+    scriptPath: process.env.ENGINE_SCRIPT_PATH ?? "uci_engine.py",
+  },
 });
 
 export const isDev = appConfig.env === "dev";

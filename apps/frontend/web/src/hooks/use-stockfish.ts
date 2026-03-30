@@ -6,10 +6,11 @@
  * implementation with the game store.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Chess } from "chess.js";
 import { StockfishWeb } from "#lib/stockfish";
+import { BackendEngineClient } from "#lib/backend-engine";
 import type { ChessEngine } from "@yourcompany/chess/types";
 import { useGameStore } from "#stores/game-store";
+import { useApi } from "#lib/api";
 
 interface UseStockfishReturn {
   /** Whether the engine is loaded and ready */
@@ -17,7 +18,7 @@ interface UseStockfishReturn {
   /** Initialization or runtime error, if engine is unavailable */
   error: string | null;
   /** Request the engine to make its move (for the current position) */
-  requestEngineMove: () => void;
+  requestEngineMove: () => Promise<void>;
 }
 
 export function useStockfish(): UseStockfishReturn {
@@ -30,16 +31,32 @@ export function useStockfish(): UseStockfishReturn {
   const gameStatus = useGameStore((s) => s.gameStatus);
   const isEngineThinking = useGameStore((s) => s.isEngineThinking);
   const engineStrength = useGameStore((s) => s.engineStrength);
+  const engineType = useGameStore((s) => s.engineType);
+  const customModelPath = useGameStore((s) => s.customModelPath);
+  const customBookPath = useGameStore((s) => s.customBookPath);
   const makeMove = useGameStore((s) => s.makeMove);
   const setEngineThinking = useGameStore((s) => s.setEngineThinking);
   const setEvaluation = useGameStore((s) => s.setEvaluation);
   const setEngineLines = useGameStore((s) => s.setEngineLines);
+  const setEngineSourceData = useGameStore((s) => s.setEngineSourceData);
 
+  const orpc = useApi();
 
-  // Initialize engine on mount
+  // Re-initialize engine when engine type or custom paths change
   useEffect(() => {
     let cancelled = false;
-    const engine = new StockfishWeb();
+    let engine: ChessEngine;
+
+    if (engineType === "custom") {
+      engine = new BackendEngineClient(
+        (input) => orpc.engine.bestMove.call(input),
+        customModelPath,
+        customBookPath || undefined,
+      );
+    } else {
+      engine = new StockfishWeb();
+    }
+
     engineRef.current = engine;
 
     engine
@@ -51,7 +68,7 @@ export function useStockfish(): UseStockfishReturn {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Failed to initialize Stockfish:", err);
+        console.error("Failed to initialize engine:", err);
         setIsReady(false);
         setError("Engine unavailable");
       });
@@ -62,8 +79,9 @@ export function useStockfish(): UseStockfishReturn {
       engineRef.current = null;
       setIsReady(false);
       setError(null);
+      setEngineSourceData(undefined, undefined, undefined, undefined);
     };
-  }, []);
+  }, [engineType, customModelPath, customBookPath]);
 
   const requestEngineMove = useCallback(async () => {
     const engine = engineRef.current;
@@ -94,6 +112,14 @@ export function useStockfish(): UseStockfishReturn {
       const evalResult = await engine.getEvaluation({ depth, skillLevel });
       setEvaluation(evalResult.score, evalResult.mate);
       setEngineLines(evalResult.pv);
+      if ("winProb" in evalResult) {
+        setEngineSourceData(
+          evalResult.winProb as number | undefined,
+          evalResult.uncertainty as number | undefined,
+          evalResult.ranking as Array<{ move: string; score: number }> | undefined,
+          evalResult.source as "gnn" | "book" | undefined,
+        );
+      }
 
       // Parse the best move (it's in long algebraic notation: e2e4)
       const bestMove = evalResult.pv[0];
@@ -106,7 +132,8 @@ export function useStockfish(): UseStockfishReturn {
       }
     } catch (err) {
       console.error("Engine move failed:", err);
-      setError("Engine request failed");
+      // Don't permanently set error for transient network failures — the
+      // auto-trigger will retry on the next position change.
     } finally {
       setEngineThinking(false);
     }
@@ -115,7 +142,8 @@ export function useStockfish(): UseStockfishReturn {
     makeMove,
     setEngineThinking,
     setEvaluation,
-
+    setEngineSourceData,
+    setEngineLines,
     engineStrength,
   ]);
 

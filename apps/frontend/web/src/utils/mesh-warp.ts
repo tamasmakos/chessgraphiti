@@ -1,5 +1,4 @@
 import type { GraphSnapshot } from "@yourcompany/chess/types";
-import type { CentralityMetric } from "#stores/game-store";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,32 +21,6 @@ export interface ElevationGrid {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-function getCentralityValue(
-	node: {
-		centralityWeighted: number;
-		centralityDegree: number;
-		centralityBetweenness: number;
-		centralityCloseness: number;
-		centralityPageRank: number;
-	},
-	metric: CentralityMetric,
-): number {
-	switch (metric) {
-		case "weighted":
-			return node.centralityWeighted;
-		case "degree":
-			return node.centralityDegree;
-		case "betweenness":
-			return node.centralityBetweenness;
-		case "closeness":
-			return node.centralityCloseness;
-		case "pagerank":
-			return node.centralityPageRank;
-		default:
-			return 0;
-	}
-}
 
 /**
  * Oblique projection: screen-X shifts toward the board centre with elevation.
@@ -78,59 +51,51 @@ function cornerElev(elevations: number[], col: number, row: number): number {
 /**
  * Compute a 9×9 elevation grid from the graph snapshot.
  *
- * Each piece contributes a Gaussian hill centred on its square. Height scales
- * with normalised centrality. White and black contributions are tracked
- * separately so the overlay can colour mountains by team.
+ * Each piece contributes a Gaussian hill centred on its square. Hill height
+ * is determined purely by piece type — occupied squares rise, empty squares
+ * are flat. White and black contributions are tracked separately so the
+ * overlay can colour mountains by team.
  *
  * @param snapshot     Current position graph
- * @param metric       Centrality metric driving elevation height
  * @param orientation  Board orientation
- * @param sigma        Gaussian hill spread in corner-grid units (default 1.1 ≈ 1 tile)
  */
 export function computeElevationGrid(
 	snapshot: GraphSnapshot,
-	metric: CentralityMetric,
 	orientation: "white" | "black",
-	sigma = 1.1,
 ): ElevationGrid {
 	const ZERO = new Array<number>(81).fill(0);
 	if (snapshot.nodes.length === 0)
 		return { total: ZERO, white: ZERO, black: ZERO };
 
-	const rawValues = snapshot.nodes.map((n) => getCentralityValue(n, metric));
-	const maxRaw = Math.max(...rawValues, Number.EPSILON);
+	// Intrinsic piece-presence weights: hill height is determined by how much
+	// board territory each piece type inherently occupies. No centrality involved.
+	const pieceWeight: Record<string, number> = {
+		q: 1,    // queen  — dominates a wide area
+		r: 0.82, // rook   — strong file/rank presence
+		b: 0.72, // bishop — diagonal sweep
+		n: 0.65, // knight — contained hop
+		p: 0.4,  // pawn   — local footprint
+		k: 0.18, // king   — present but passive
+	};
 
-	// Sigma (Gaussian spread) scales with piece mobility range so long-range
-	// sliders cast broad territory hills while pawns stay tight and localised.
-	// The `sigma` param acts as a global multiplier on top of per-piece spread.
+	// Sigma controls how far each piece's Gaussian hill spreads.
+	// Long-range pieces cast wider hills; pawns stay tight and localised.
 	const pieceSigma: Record<string, number> = {
-		q: 2.4, // queen  — widest board control
-		r: 1.9, // rook   — open file / rank pressure
-		b: 1.8, // bishop — diagonal sweep
-		n: 1.3, // knight — short hop, contained footprint
-		p: 0.9, // pawn   — very local
-		k: 1.0, // king   — attenuated separately
+		q: 2.4,
+		r: 1.9,
+		b: 1.8,
+		n: 1.3,
+		p: 0.9,
+		k: 1.1,
 	};
 
 	const whiteAcc = new Float32Array(81);
 	const blackAcc = new Float32Array(81);
 
-	// Minimum presence floor: every piece registers a visible hill regardless of
-	// its centrality score. Without this, pieces with low relative centrality
-	// (e.g. rooks staring at each other on an open file) get normalised near
-	// zero and fall below the render threshold — even though they clearly control
-	// territory. The floor guarantees terrain presence; centrality only amplifies
-	// above it. Only applied when a real metric is active (not "none").
-	const pieceFloor = metric !== "none" ? 0.30 : 0;
-
-	for (let i = 0; i < snapshot.nodes.length; i++) {
-		const node = snapshot.nodes[i];
+	for (const node of snapshot.nodes) {
 		if (!node) continue;
-		const kingAttenuation = node.type === "k" ? 0.15 : 1;
-		const normalised =
-			Math.max((rawValues[i] ?? 0) / maxRaw, pieceFloor) * kingAttenuation;
-		// Spread: per-type sigma so long-range pieces cast wider hills.
-		const s = (pieceSigma[node.type] ?? 1.1) * sigma;
+		const weight = pieceWeight[node.type] ?? 0.5;
+		const s = pieceSigma[node.type] ?? 1.1;
 		const twoSigmaSqLocal = 2 * s * s;
 		const file = node.square.charCodeAt(0) - 97;
 		const rank = Number.parseInt(node.square[1] ?? "1", 10) - 1;
@@ -145,7 +110,7 @@ export function computeElevationGrid(
 				const idx = row * 9 + col;
 				target[idx] =
 					(target[idx] ?? 0) +
-					normalised * Math.exp(-(dx * dx + dy * dy) / twoSigmaSqLocal);
+					weight * Math.exp(-(dx * dx + dy * dy) / twoSigmaSqLocal);
 			}
 		}
 	}
@@ -157,13 +122,16 @@ export function computeElevationGrid(
 		if (v > maxVal) maxVal = v;
 	}
 
+	// Power-curve sharpener: exponent > 1 pushes low elevations further down
+	// and keeps peaks near 1 — dramatising the wave contrast between tiles.
+	const SHARP = 1.7;
 	return {
 		total: Array.from(
 			{ length: 81 },
-			(_, i) => ((whiteAcc[i] ?? 0) + (blackAcc[i] ?? 0)) / maxVal,
+			(_, i) => Math.pow(((whiteAcc[i] ?? 0) + (blackAcc[i] ?? 0)) / maxVal, SHARP),
 		),
-		white: Array.from({ length: 81 }, (_, i) => (whiteAcc[i] ?? 0) / maxVal),
-		black: Array.from({ length: 81 }, (_, i) => (blackAcc[i] ?? 0) / maxVal),
+		white: Array.from({ length: 81 }, (_, i) => Math.pow((whiteAcc[i] ?? 0) / maxVal, SHARP)),
+		black: Array.from({ length: 81 }, (_, i) => Math.pow((blackAcc[i] ?? 0) / maxVal, SHARP)),
 	};
 }
 

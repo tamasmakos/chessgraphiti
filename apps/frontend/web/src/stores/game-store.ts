@@ -67,6 +67,19 @@ export interface GameStore {
 	mateIn?: number;
 	engineStrength: number;
 	engineLines: string[];
+	engineType: "stockfish" | "custom";
+	customModelPath: string;
+	customBookPath: string;
+	winProb?: number;
+	uncertainty?: number;
+	moveRanking?: Array<{ move: string; score: number }>;
+	engineSource?: "gnn" | "book";
+
+	// -- Tutor state -------------------------------------------------------
+	tutorMode: boolean;
+	tutorRanking: Array<{ move: string; score: number }> | null;
+	isTutorAnalyzing: boolean;
+	tutorWinProb: number | undefined;
 
 	// -- Graph state -------------------------------------------------------
 	graphSnapshot: GraphSnapshot | null;
@@ -105,6 +118,17 @@ export interface GameStore {
 	setEngineThinking: (thinking: boolean) => void;
 	setEngineStrength: (strength: number) => void;
 	setEngineLines: (lines: string[]) => void;
+	setEngineConfig: (type: "stockfish" | "custom", modelPath: string, bookPath: string) => void;
+	setEngineSourceData: (
+		winProb: number | undefined,
+		uncertainty: number | undefined,
+		ranking: Array<{ move: string; score: number }> | undefined,
+		source: "gnn" | "book" | undefined,
+	) => void;
+	setTutorMode: (on: boolean) => void;
+	setTutorData: (ranking: Array<{ move: string; score: number }>, winProb: number | undefined) => void;
+	clearTutorData: () => void;
+	setTutorAnalyzing: (analyzing: boolean) => void;
 	rebuildGraph: () => void;
 }
 
@@ -214,6 +238,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 	mateIn: undefined,
 	engineStrength: DEFAULT_ENGINE_STRENGTH,
 	engineLines: [],
+	engineType: "stockfish" as const,
+	customModelPath: "gateau_distilled.pt",
+	customBookPath: "chessgnn.bin",
+	winProb: undefined,
+	uncertainty: undefined,
+	moveRanking: undefined,
+	engineSource: undefined,
+
+	// -- Tutor state -------------------------------------------------------
+	tutorMode: false,
+	tutorRanking: null,
+	isTutorAnalyzing: false,
+	tutorWinProb: undefined,
 
 	// -- Graph state -------------------------------------------------------
 	graphSnapshot: computeGraph(STARTING_FEN),
@@ -482,6 +519,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
 		set({ engineStrength }),
 
 	setEngineLines: (lines) => set({ engineLines: lines }),
+
+	setEngineConfig: (type, modelPath, bookPath) =>
+		set({ engineType: type, customModelPath: modelPath, customBookPath: bookPath }),
+
+	setEngineSourceData: (winProb, uncertainty, ranking, source) =>
+		set({ winProb, uncertainty, moveRanking: ranking, engineSource: source }),
+
+	setTutorMode: (on) => set({ tutorMode: on, tutorRanking: on ? get().tutorRanking : null, tutorWinProb: on ? get().tutorWinProb : undefined }),
+
+	setTutorData: (ranking, winProb) => set({ tutorRanking: ranking, tutorWinProb: winProb, isTutorAnalyzing: false }),
+
+	clearTutorData: () => set({ tutorRanking: null, tutorWinProb: undefined }),
+
+	setTutorAnalyzing: (analyzing) => set({ isTutorAnalyzing: analyzing }),
 
 	rebuildGraph: () => {
 		const state = get();

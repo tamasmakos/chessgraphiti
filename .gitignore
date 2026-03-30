@@ -23,6 +23,10 @@ CLAUDE.md
 .mcp.json
 .cursor
 
+# Engine assets — checked-in ML models and opening books
+apps/backend/api/models/*.pt
+apps/backend/api/books/*.bin
+
 # Android/IntelliJ
 build/
 .idea/
@@ -40,3 +44,6 @@ coverage/
 .eslintcache
 
 skills
+
+*.log
+*.pyc

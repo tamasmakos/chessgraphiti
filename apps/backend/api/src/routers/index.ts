@@ -8,15 +8,15 @@ import { orpc } from "#orpc";
 import { userRouter } from "#routers/user";
 import { healthRouter } from "#routers/health";
 import { gamesRouter } from "#routers/games";
-
 import { exportsRouter } from "#routers/exports";
+import { engineRouter } from "#routers/engine";
 
 export const router = () =>
   orpc.router({
     user: userRouter(),
     games: gamesRouter(),
-
     exports: exportsRouter(),
+    engine: engineRouter(),
   });
 
 export type Router = ReturnType<typeof router>;

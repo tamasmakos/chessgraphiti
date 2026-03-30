@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ChessBoard,
   EvalBar,
@@ -18,6 +18,8 @@ import {
   CommunityLineageGraph,
   DashboardHeader,
   FluidFieldOverlay,
+  TutorArrowOverlay,
+  TutorRankingPanel,
 } from "#components/chess/index";
 import { MeshWarpOverlay } from "#components/chess/MeshWarpOverlay";
 import { useGameStore } from "#stores/game-store";
@@ -56,6 +58,13 @@ function TrainPage() {
   const analysisGraphSnapshots = useGameStore((s) => s.analysisGraphSnapshots);
   const analysisLineage = useGameStore((s) => s.analysisLineage);
   const history = useGameStore((s) => s.history);
+  const engineType = useGameStore((s) => s.engineType);
+  const customModelPath = useGameStore((s) => s.customModelPath);
+  const customBookPath = useGameStore((s) => s.customBookPath);
+  const tutorMode = useGameStore((s) => s.tutorMode);
+  const tutorRanking = useGameStore((s) => s.tutorRanking);
+  const isTutorAnalyzing = useGameStore((s) => s.isTutorAnalyzing);
+  const tutorWinProb = useGameStore((s) => s.tutorWinProb);
 
   const makeMove = useGameStore((s) => s.makeMove);
   const setPlayerColor = useGameStore((s) => s.setPlayerColor);
@@ -67,6 +76,10 @@ function TrainPage() {
   const navigateAnalysis = useGameStore((s) => s.navigateAnalysis);
   const setEngineStrength = useGameStore((s) => s.setEngineStrength);
   const setCentralityMetric = useGameStore((s) => s.setCentralityMetric);
+  const setEngineConfig = useGameStore((s) => s.setEngineConfig);
+  const setTutorMode = useGameStore((s) => s.setTutorMode);
+  const setTutorData = useGameStore((s) => s.setTutorData);
+  const setTutorAnalyzing = useGameStore((s) => s.setTutorAnalyzing);
 
   const handleBoardSync = useCallback(
     (metric: Parameters<typeof setCentralityMetric>[0], squares: Set<string>) => {
@@ -109,6 +122,10 @@ function TrainPage() {
   );
   const enqueueExport = (fps: number) => exportReelMutation.mutate({ fps, pgn, moves: history });
 
+  const engineFilesQuery = useQuery(api.engine.listFiles.queryOptions());
+  const models = engineFilesQuery.data?.models ?? [];
+  const books = engineFilesQuery.data?.books ?? [];
+
   const handlePieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string | null): boolean => {
       if (!targetSquare) return false;
@@ -116,6 +133,24 @@ function TrainPage() {
     },
     [makeMove],
   );
+
+  // Tutor: run GNN analysis on every FEN change when tutorMode is active
+  useEffect(() => {
+    if (!tutorMode || engineType !== "custom") return;
+    let cancelled = false;
+    setTutorAnalyzing(true);
+    api.engine.analyzePosition
+      .call({ fen, modelPath: customModelPath, bookPath: customBookPath || undefined })
+      .then((result) => {
+        if (!cancelled) setTutorData(result.ranking ?? [], result.winProb);
+      })
+      .catch(() => {
+        if (!cancelled) setTutorAnalyzing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, tutorMode, engineType, fen, customModelPath, customBookPath, setTutorData, setTutorAnalyzing]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -192,6 +227,71 @@ function TrainPage() {
               </button>
             </div>
 
+            <div className="h-4 w-px bg-slate-800" />
+
+            {/* Engine selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Engine</span>
+              {(["stockfish", "custom"] as const).map((t) => {
+                const activeClass =
+                  t === "custom"
+                    ? "bg-emerald-900 text-emerald-200 border-emerald-700"
+                    : "bg-slate-700 text-white border-slate-500";
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setEngineConfig(t, customModelPath, customBookPath)}
+                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                      engineType === t
+                        ? activeClass
+                        : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                    }`}
+                  >
+                    {t === "stockfish" ? "Stockfish" : "GNN"}
+                  </button>
+                );
+              })}
+            </div>
+
+            {engineType === "custom" && (
+              <>
+                <div className="h-4 w-px bg-slate-800" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Model</span>
+                  <select
+                    value={customModelPath}
+                    onChange={(e) => setEngineConfig("custom", e.target.value, customBookPath)}
+                    className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
+                  >
+                    {(models.length ? models : [customModelPath]).map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={customBookPath}
+                    onChange={(e) => setEngineConfig("custom", customModelPath, e.target.value)}
+                    className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
+                  >
+                    <option value="">No book</option>
+                    {books.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="h-4 w-px bg-slate-800" />
+                <button
+                  onClick={() => setTutorMode(!tutorMode)}
+                  className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                    tutorMode
+                      ? "bg-emerald-800 text-emerald-100 border-emerald-600"
+                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                  }`}
+                >
+                  Tutor
+                </button>
+              </>
+            )}
+
           </div>
 
           {/* Board — grows to fill remaining space */}
@@ -209,6 +309,7 @@ function TrainPage() {
               onPieceDrop={handlePieceDrop}
               showFluidField={false}
               fluidFieldOpacity={fluidFieldOpacity}
+              tutorRanking={tutorRanking}
             />
 
             {isGameOver && (
@@ -265,6 +366,17 @@ function TrainPage() {
 
         {/* ═══ RIGHT: Dense data panel ══════════════ */}
         <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 p-3 lg:pl-1 overflow-y-auto w-full">
+
+          {/* Tutor ranking (GNN mode only) */}
+          {tutorMode && engineType === "custom" && (
+            <div className="flex-shrink-0 bg-slate-900/40 rounded-xl border border-emerald-800/40 p-3">
+              <TutorRankingPanel
+                ranking={tutorRanking ?? []}
+                winProb={tutorWinProb}
+                isAnalyzing={isTutorAnalyzing}
+              />
+            </div>
+          )}
 
           {/* Traditional metrics strip */}
           <div className="flex-shrink-0">
@@ -323,13 +435,14 @@ function TrainPage() {
 function BoardSizer({
   fen, orientation, isInteractive, shouldRenderGraph, graphSnapshot,
   stableColorMap, currentTransition, centralityMetric, highlightSquares, onPieceDrop,
-  showFluidField, fluidFieldOpacity,
+  showFluidField, fluidFieldOpacity, tutorRanking,
 }: {
   fen: string; orientation: "white" | "black"; isInteractive: boolean;
   shouldRenderGraph: boolean; graphSnapshot: any; stableColorMap: any;
   currentTransition: any; centralityMetric: any; highlightSquares: Set<string>;
   onPieceDrop: (from: string, to: string | null) => boolean;
   showFluidField: boolean; fluidFieldOpacity: number;
+  tutorRanking: Array<{ move: string; score: number }> | null | undefined;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(480);
@@ -381,7 +494,6 @@ function BoardSizer({
         {shouldRenderGraph && graphSnapshot && (
           <MeshWarpOverlay
             graphSnapshot={graphSnapshot}
-            centralityMetric={centralityMetric}
             boardWidth={boardWidth}
             orientation={orientation}
           />
@@ -395,6 +507,13 @@ function BoardSizer({
             hintMove={null}
             weightThreshold={0.1}
             showDominance={false}
+          />
+        )}
+        {tutorRanking && tutorRanking.length > 0 && (
+          <TutorArrowOverlay
+            ranking={tutorRanking}
+            boardWidth={boardWidth}
+            orientation={orientation}
           />
         )}
       </ChessBoard>
