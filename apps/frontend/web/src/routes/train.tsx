@@ -5,8 +5,9 @@
  * Right panel uses a CSS grid to place all visualizations without wasted space.
  */
 import { useCallback, useEffect, useState, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "#providers/auth-provider";
 import {
   ChessBoard,
   EvalBar,
@@ -39,6 +40,7 @@ function TrainPage() {
   const [leftWidthPct, setLeftWidthPct] = useState(50);
   const [highlightSquares, setHighlightSquares] = useState<Set<string>>(new Set());
   const [fluidFieldOpacity] = useState(0.75);
+  const [showSettings, setShowSettings] = useState(false);
 
   const fen = useGameStore((s) => s.fen);
   const pgn = useGameStore((s) => s.pgn);
@@ -76,7 +78,7 @@ function TrainPage() {
   const navigateAnalysis = useGameStore((s) => s.navigateAnalysis);
   const setEngineStrength = useGameStore((s) => s.setEngineStrength);
   const setCentralityMetric = useGameStore((s) => s.setCentralityMetric);
-  const setEngineConfig = useGameStore((s) => s.setEngineConfig);
+  const setEngineConfig = useGameStore((s) => s.setEngineConfig); // engine choice
   const setTutorMode = useGameStore((s) => s.setTutorMode);
   const setTutorData = useGameStore((s) => s.setTutorData);
   const setTutorAnalyzing = useGameStore((s) => s.setTutorAnalyzing);
@@ -114,6 +116,10 @@ function TrainPage() {
 
 
   const api = useApi();
+  const engineFilesQuery = useQuery(api.engine.listFiles.queryOptions());
+  const models = engineFilesQuery.data?.models ?? [];
+  const books = engineFilesQuery.data?.books ?? [];
+
   const exportReelMutation = useMutation(
     api.exports.enqueue.mutationOptions({
       onSuccess: (job) => toast.success(`Export queued (id: ${job.id})`),
@@ -122,10 +128,6 @@ function TrainPage() {
   );
   const enqueueExport = (fps: number) => exportReelMutation.mutate({ fps, pgn, moves: history });
 
-  const engineFilesQuery = useQuery(api.engine.listFiles.queryOptions());
-  const models = engineFilesQuery.data?.models ?? [];
-  const books = engineFilesQuery.data?.books ?? [];
-
   const handlePieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string | null): boolean => {
       if (!targetSquare) return false;
@@ -133,24 +135,6 @@ function TrainPage() {
     },
     [makeMove],
   );
-
-  // Tutor: run GNN analysis on every FEN change when tutorMode is active
-  useEffect(() => {
-    if (!tutorMode) return;
-    let cancelled = false;
-    setTutorAnalyzing(true);
-    api.engine.analyzePosition
-      .call({ fen, modelPath: customModelPath, bookPath: customBookPath || undefined })
-      .then((result) => {
-        if (!cancelled) setTutorData(result.ranking ?? [], result.winProb);
-      })
-      .catch(() => {
-        if (!cancelled) setTutorAnalyzing(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, tutorMode, fen, customModelPath, customBookPath, setTutorData, setTutorAnalyzing]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -165,6 +149,22 @@ function TrainPage() {
     globalThis.addEventListener("keydown", handler);
     return () => globalThis.removeEventListener("keydown", handler);
   }, [isAnalysis, navigateAnalysis]);
+
+  useEffect(() => {
+    if (!tutorMode) return;
+    let cancelled = false;
+    setTutorAnalyzing(true);
+    api.engine.analyzePosition.call({
+      fen,
+      modelPath: customModelPath,
+      bookPath: customBookPath || undefined,
+    }).then((result) => {
+      if (!cancelled) setTutorData(result.ranking ?? [], result.winProb);
+    }).catch(() => {
+      if (!cancelled) setTutorAnalyzing(false);
+    });
+    return () => { cancelled = true; };
+  }, [api, tutorMode, fen, customModelPath, customBookPath, setTutorData, setTutorAnalyzing]);
 
   return (
     <div className="h-screen max-h-screen flex flex-col overflow-hidden bg-slate-950 selection:bg-indigo-500/30">
@@ -189,110 +189,122 @@ function TrainPage() {
           className="flex flex-col flex-shrink-0 p-3 lg:pr-1 gap-2 w-full lg:w-[var(--left-width)]"
         >
           {/* ── Board toolbar ── */}
-          <div className="flex-shrink-0 flex flex-wrap items-center gap-2.5 px-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Play as</span>
-              {(["w", "b"] as const).map((c) => (
-                <button key={c}
-                  onClick={() => { setPlayerColor(c); newGame(); }}
-                  className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
-                    playerColor === c
-                      ? c === "w" ? "bg-white text-slate-900 border-white" : "bg-slate-800 text-white border-slate-500"
-                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                  }`}
-                >
-                  {c === "w" ? "White" : "Black"}
+          <div className="flex-shrink-0 flex flex-col gap-1.5 px-1">
+            {/* Primary controls — always visible */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Play as</span>
+                {(["w", "b"] as const).map((c) => {
+                  const activeClass = c === "w"
+                    ? "bg-white text-slate-900 border-white"
+                    : "bg-slate-800 text-white border-slate-500";
+                  return (
+                    <button key={c}
+                      onClick={() => { setPlayerColor(c); newGame(); }}
+                      className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                        playerColor === c ? activeClass : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                      }`}
+                    >
+                      {c === "w" ? "White" : "Black"}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="h-4 w-px bg-slate-800" />
+              <div className="flex items-center gap-1.5">
+                {(isPlaying || isGameOver) && (
+                  <>
+                    <button onClick={undo} className="px-2.5 py-1 text-[10px] font-black text-slate-400 rounded-lg border border-slate-700 hover:text-slate-200 transition-all">Undo</button>
+                    <button onClick={resign} className="px-2.5 py-1 text-[10px] font-black text-rose-400 rounded-lg border border-rose-900/50 bg-rose-900/10 hover:bg-rose-900/20 transition-all">Resign</button>
+                  </>
+                )}
+                <button onClick={() => { setPlayerColor(playerColor); newGame(); }}
+                  className="px-2.5 py-1 text-[10px] font-black text-slate-200 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all">
+                  New Game
                 </button>
-              ))}
-            </div>
-            <div className="h-4 w-px bg-slate-800" />
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Depth</span>
-              <input type="range" min={0} max={20} step={1} value={engineStrength}
-                onChange={(e) => setEngineStrength(Number(e.target.value))}
-                className="w-20 accent-indigo-500 h-1 bg-slate-800 rounded-lg cursor-pointer" />
-              <span className="text-[10px] font-mono text-indigo-400 w-4 text-right">{engineStrength}</span>
-            </div>
-            <div className="h-4 w-px bg-slate-800" />
-            <div className="flex items-center gap-1.5">
-              {(isPlaying || isGameOver) && (
-                <>
-                  <button onClick={undo} className="px-2.5 py-1 text-[10px] font-black text-slate-400 rounded-lg border border-slate-700 hover:text-slate-200 transition-all">Undo</button>
-                  <button onClick={resign} className="px-2.5 py-1 text-[10px] font-black text-rose-400 rounded-lg border border-rose-900/50 bg-rose-900/10 hover:bg-rose-900/20 transition-all">Resign</button>
-                </>
-              )}
-              <button onClick={() => { setPlayerColor(playerColor); newGame(); }}
-                className="px-2.5 py-1 text-[10px] font-black text-slate-200 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all">
-                New Game
+              </div>
+              <div className="flex-1" />
+              {/* Settings toggle */}
+              <button
+                onClick={() => setShowSettings((v) => !v)}
+                aria-expanded={showSettings}
+                className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                  showSettings
+                    ? "bg-slate-700 text-white border-slate-500"
+                    : "border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300"
+                }`}
+              >
+                ⚙ Settings
               </button>
             </div>
 
-            <div className="h-4 w-px bg-slate-800" />
-
-            {/* Engine selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Engine</span>
-              {(["stockfish", "custom"] as const).map((t) => {
-                const activeClass =
-                  t === "custom"
-                    ? "bg-emerald-900 text-emerald-200 border-emerald-700"
-                    : "bg-slate-700 text-white border-slate-500";
-                return (
-                  <button
-                    key={t}
-                    onClick={() => setEngineConfig(t, customModelPath, customBookPath)}
-                    className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
-                      engineType === t
-                        ? activeClass
-                        : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                    }`}
-                  >
-                    {t === "stockfish" ? "Stockfish" : "GNN"}
-                  </button>
-                );
-              })}
-            </div>
-
-            {engineType === "custom" && (
-              <>
+            {/* Advanced controls — shown when settings is open */}
+            {showSettings && (
+              <div className="flex flex-wrap items-center gap-2.5 py-1.5 px-2 bg-slate-900/50 rounded-xl border border-slate-800/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Depth</span>
+                  <input type="range" min={0} max={20} step={1} value={engineStrength}
+                    onChange={(e) => setEngineStrength(Number(e.target.value))}
+                    className="w-20 accent-indigo-500 h-1 bg-slate-800 rounded-lg cursor-pointer" />
+                  <span className="text-[10px] font-mono text-indigo-400 w-4 text-right">{engineStrength}</span>
+                </div>
                 <div className="h-4 w-px bg-slate-800" />
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Model</span>
-                  <select
-                    value={customModelPath}
-                    onChange={(e) => setEngineConfig("custom", e.target.value, customBookPath)}
-                    className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
-                  >
-                    {(models.length ? models : [customModelPath]).map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={customBookPath}
-                    onChange={(e) => setEngineConfig("custom", customModelPath, e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
-                  >
-                    <option value="">No book</option>
-                    {books.map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Engine</span>
+                  {(["stockfish", "custom"] as const).map((t) => {
+                    const activeClass = t === "custom"
+                      ? "bg-emerald-900 text-emerald-200 border-emerald-700"
+                      : "bg-slate-700 text-white border-slate-500";
+                    return (
+                      <button key={t}
+                        onClick={() => setEngineConfig(t, customModelPath, customBookPath)}
+                        className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                          engineType === t ? activeClass : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                        }`}
+                      >
+                        {t === "stockfish" ? "Stockfish" : "GNN"}
+                      </button>
+                    );
+                  })}
                 </div>
-              </>
+                {engineType === "custom" && (
+                  <>
+                    <div className="h-4 w-px bg-slate-800" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Model</span>
+                      <select
+                        value={customModelPath}
+                        onChange={(e) => setEngineConfig("custom", e.target.value, customBookPath)}
+                        className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
+                      >
+                        {(models.length ? models : [customModelPath]).map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={customBookPath}
+                        onChange={(e) => setEngineConfig("custom", customModelPath, e.target.value)}
+                        className="bg-slate-800 border border-slate-700 text-slate-200 text-[10px] rounded-lg px-2 py-1 font-mono"
+                      >
+                        <option value="">No book</option>
+                        {books.map((b) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+                <div className="h-4 w-px bg-slate-800" />
+                <button
+                  onClick={() => setTutorMode(!tutorMode)}
+                  className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                    tutorMode
+                      ? "bg-emerald-800 text-emerald-100 border-emerald-600"
+                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                  }`}
+                >
+                  Tutor
+                </button>
+              </div>
             )}
-
-            <div className="h-4 w-px bg-slate-800" />
-            <button
-              onClick={() => setTutorMode(!tutorMode)}
-              className={`px-3 py-1.5 text-[11px] font-black rounded-lg border-2 transition-all ${
-                tutorMode
-                  ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/40"
-                  : "border-emerald-600 text-emerald-400 hover:bg-emerald-900/30"
-              }`}
-            >
-              🎓 Tutor
-            </button>
-
           </div>
 
           {/* Board — grows to fill remaining space */}
@@ -368,7 +380,7 @@ function TrainPage() {
         {/* ═══ RIGHT: Dense data panel ══════════════ */}
         <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 p-3 lg:pl-1 overflow-y-auto w-full">
 
-          {/* Tutor ranking (GNN mode only) */}
+          {/* Tutor ranking */}
           {tutorMode && (
             <div className="flex-shrink-0 bg-slate-900/40 rounded-xl border border-emerald-800/40 p-3">
               <TutorRankingPanel
@@ -438,12 +450,12 @@ function BoardSizer({
   stableColorMap, currentTransition, centralityMetric, highlightSquares, onPieceDrop,
   showFluidField, fluidFieldOpacity, tutorRanking,
 }: {
-  fen: string; orientation: "white" | "black"; isInteractive: boolean;
-  shouldRenderGraph: boolean; graphSnapshot: any; stableColorMap: any;
-  currentTransition: any; centralityMetric: any; highlightSquares: Set<string>;
-  onPieceDrop: (from: string, to: string | null) => boolean;
-  showFluidField: boolean; fluidFieldOpacity: number;
-  tutorRanking: Array<{ move: string; score: number }> | null | undefined;
+  readonly fen: string; readonly orientation: "white" | "black"; readonly isInteractive: boolean;
+  readonly shouldRenderGraph: boolean; readonly graphSnapshot: any; readonly stableColorMap: any;
+  readonly currentTransition: any; readonly centralityMetric: any; readonly highlightSquares: Set<string>;
+  readonly onPieceDrop: (from: string, to: string | null) => boolean;
+  readonly showFluidField: boolean; readonly fluidFieldOpacity: number;
+  readonly tutorRanking: Array<{ move: string; score: number }> | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(480);
@@ -608,11 +620,13 @@ function AnalysisControls({ index, total, onNavigate, onExit }: Readonly<{
 // ---------------------------------------------------------------------------
 // Game Over Modal
 // ---------------------------------------------------------------------------
-function GameOverModal({ reason, playerColor, onAnalyze, onExport, isExporting }: {
+function GameOverModal({ reason, playerColor, onAnalyze, onExport, isExporting }: Readonly<{
   reason?: string; playerColor: "w" | "b";
   onAnalyze: () => void; onExport: (fps: number) => void; isExporting: boolean;
-}) {
+}>) {
   const [fps, setFps] = useState(12);
+  const { isAuthenticated } = useAuth();
+
   let title = "Game Over";
   if (reason === "checkmate") title = "Checkmate";
   else if (reason === "stalemate") title = "Draw — Stalemate";
@@ -636,6 +650,17 @@ function GameOverModal({ reason, playerColor, onAnalyze, onExport, isExporting }
             {isExporting ? "Exporting…" : "Export Reel"}
           </Button>
         </div>
+        {!isAuthenticated && (
+          <div className="mt-5 pt-4 border-t border-slate-800">
+            <p className="text-[11px] text-slate-400 mb-2 leading-snug">
+              Sign up to save your games and track your progress.
+            </p>
+            <Link to="/auth" search={{ mode: "signup" }}
+              className="block w-full py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-xl text-xs font-bold border border-indigo-500/30 transition-colors">
+              Save Progress — Free
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
