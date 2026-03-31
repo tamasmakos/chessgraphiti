@@ -136,7 +136,7 @@ function TrainPage() {
 
   // Tutor: run GNN analysis on every FEN change when tutorMode is active
   useEffect(() => {
-    if (!tutorMode || engineType !== "custom") return;
+    if (!tutorMode) return;
     let cancelled = false;
     setTutorAnalyzing(true);
     api.engine.analyzePosition
@@ -150,7 +150,7 @@ function TrainPage() {
     return () => {
       cancelled = true;
     };
-  }, [api, tutorMode, engineType, fen, customModelPath, customBookPath, setTutorData, setTutorAnalyzing]);
+  }, [api, tutorMode, fen, customModelPath, customBookPath, setTutorData, setTutorAnalyzing]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -278,19 +278,20 @@ function TrainPage() {
                     ))}
                   </select>
                 </div>
-                <div className="h-4 w-px bg-slate-800" />
-                <button
-                  onClick={() => setTutorMode(!tutorMode)}
-                  className={`px-2.5 py-1 text-[10px] font-black rounded-lg border transition-all ${
-                    tutorMode
-                      ? "bg-emerald-800 text-emerald-100 border-emerald-600"
-                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                  }`}
-                >
-                  Tutor
-                </button>
               </>
             )}
+
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+              onClick={() => setTutorMode(!tutorMode)}
+              className={`px-3 py-1.5 text-[11px] font-black rounded-lg border-2 transition-all ${
+                tutorMode
+                  ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/40"
+                  : "border-emerald-600 text-emerald-400 hover:bg-emerald-900/30"
+              }`}
+            >
+              🎓 Tutor
+            </button>
 
           </div>
 
@@ -368,7 +369,7 @@ function TrainPage() {
         <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-2 p-3 lg:pl-1 overflow-y-auto w-full">
 
           {/* Tutor ranking (GNN mode only) */}
-          {tutorMode && engineType === "custom" && (
+          {tutorMode && (
             <div className="flex-shrink-0 bg-slate-900/40 rounded-xl border border-emerald-800/40 p-3">
               <TutorRankingPanel
                 ranking={tutorRanking ?? []}

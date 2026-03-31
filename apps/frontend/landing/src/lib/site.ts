@@ -1,16 +1,12 @@
 export const SITE = {
-  title: "FRM Stack",
+  title: "ChessGraphiti",
   description:
-    "A modern TypeScript monorepo template (Turbo + pnpm) with a clean backend/frontend split and pragmatic defaults.",
+    "Chess you can see. Understand why positions are strong with live graph overlays, piece communities, and structural influence — not just moves.",
 };
 
 export const LINKS = {
-  github: "https://github.com/Nikola-Milovic/frm-stack",
-  twitter: "https://x.com/nikolamilovic5",
-  email: "nikola@frmlabz.com",
-} as const;
-
-export const GET_STARTED = {
-  cloneSsh: "git@github.com:Nikola-Milovic/frm-stack.git",
-  cloneHttps: "https://github.com/Nikola-Milovic/frm-stack.git",
+  github: "https://github.com/chessgraphiti/chessgraphiti",
+  twitter: "https://x.com/chessgraphiti",
+  email: "hello@chessgraphiti.com",
+  app: "https://app.chessgraphiti.com",
 } as const;
