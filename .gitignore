@@ -18,10 +18,20 @@ storybook-static
 .omni/
 omni.local.toml
 # OmniDev Provider Files
-CLAUDE.md
 .claude/
 .mcp.json
 .cursor
+.claw/
+.openclaw/
+.vscode/
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+SOUL.md
+TOOLS.md
+USER.md
 
 # Engine assets — checked-in ML models and opening books
 apps/backend/api/models/*.pt
