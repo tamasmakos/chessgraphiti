@@ -22,14 +22,8 @@ function squareCenter(
   const file = (square.codePointAt(0) ?? 97) - 97;
   const rank = Number.parseInt(square[1] ?? "1", 10) - 1;
   const sq = boardWidth / 8;
-  const x =
-    orientation === "white"
-      ? file * sq + sq / 2
-      : (7 - file) * sq + sq / 2;
-  const y =
-    orientation === "white"
-      ? (7 - rank) * sq + sq / 2
-      : rank * sq + sq / 2;
+  const x = orientation === "white" ? file * sq + sq / 2 : (7 - file) * sq + sq / 2;
+  const y = orientation === "white" ? (7 - rank) * sq + sq / 2 : rank * sq + sq / 2;
   return { x, y };
 }
 
@@ -37,13 +31,7 @@ function squareCenter(
 // Arrow shape helpers
 // ---------------------------------------------------------------------------
 
-function arrowPath(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  shaftWidth: number,
-): string {
+function arrowPath(x1: number, y1: number, x2: number, y2: number, shaftWidth: number): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.hypot(dx, dy);
@@ -92,11 +80,7 @@ function arrowPath(
 // Component
 // ---------------------------------------------------------------------------
 
-export function TutorArrowOverlay({
-  ranking,
-  boardWidth,
-  orientation,
-}: TutorArrowOverlayProps) {
+export function TutorArrowOverlay({ ranking, boardWidth, orientation }: TutorArrowOverlayProps) {
   const id = useId();
 
   const arrows = useMemo(() => {
@@ -139,20 +123,9 @@ export function TutorArrowOverlay({
   }, [ranking, boardWidth, orientation, id]);
 
   return (
-    <svg
-      className="pointer-events-none absolute inset-0"
-      width={boardWidth}
-      height={boardWidth}
-    >
+    <svg className="pointer-events-none absolute inset-0" width={boardWidth} height={boardWidth}>
       {arrows.map((a) =>
-        a ? (
-          <path
-            key={a.key}
-            d={a.path}
-            fill={a.color}
-            opacity={a.opacity}
-          />
-        ) : null,
+        a ? <path key={a.key} d={a.path} fill={a.color} opacity={a.opacity} /> : null,
       )}
     </svg>
   );

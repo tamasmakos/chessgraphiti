@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
-import type { GraphSnapshot } from "@yourcompany/chess/types";
+import { COMMUNITY_COLORS, SQUARES } from "@yourcompany/chess/constants";
 import type { InfluenceMap, SquareInfluence } from "@yourcompany/chess/influence";
 import { computeInfluenceField } from "@yourcompany/chess/influence";
-import { COMMUNITY_COLORS, SQUARES } from "@yourcompany/chess/constants";
+import type { GraphSnapshot } from "@yourcompany/chess/types";
+import React, { useMemo } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,9 +65,7 @@ function blendedFill(whiteW: number, blackW: number): string {
   return `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
 }
 
-function getCommColor(
-  infl: SquareInfluence,
-): { r: number; g: number; b: number } | undefined {
+function getCommColor(infl: SquareInfluence): { r: number; g: number; b: number } | undefined {
   const commId = infl.whiteWeight >= infl.blackWeight ? infl.whiteCommId : infl.blackCommId;
   if (commId < 0) return undefined;
   return PARSED_COMMUNITY_COLORS[commId % PARSED_COMMUNITY_COLORS.length];
@@ -112,7 +110,6 @@ function renderInfluenceMap(
             style={{ transition: "fill 400ms ease-out" }}
           />
         )}
-
       </g>,
     );
   }

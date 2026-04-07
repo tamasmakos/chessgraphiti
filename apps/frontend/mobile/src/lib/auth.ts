@@ -1,9 +1,9 @@
-import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
-import { customSessionClient } from "better-auth/client/plugins";
 import type { Auth } from "@yourcompany/api/auth";
-import { Platform } from "react-native";
+import { customSessionClient } from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { getConfig } from "./config";
 
 // Must match backend's `advanced.cookiePrefix`
@@ -96,7 +96,7 @@ export const getAuthHeaders = (): Record<string, string> => {
  */
 export const authenticatedFetch = async (
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> => {
   if (Platform.OS === "web") {
     return fetch(url, {

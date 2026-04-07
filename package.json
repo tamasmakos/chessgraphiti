@@ -11,6 +11,9 @@
     "lint:check": "turbo run lint:check",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "coverage": "turbo run coverage",
+    "quality:check": "pnpm exec biome ci --changed --since=HEAD~1 --files-ignore-unknown=true --css-parse-tailwind-directives=true --no-errors-on-unmatched .",
+    "quality:full": "pnpm lint:check && pnpm typecheck && pnpm test",
     "prepare": "husky"
   },
   "keywords": [],

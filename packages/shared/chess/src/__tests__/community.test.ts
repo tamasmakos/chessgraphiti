@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { detectCommunities } from "../community.ts";
-import type { GraphNode, GraphEdge } from "../types.ts";
+import type { GraphEdge, GraphNode } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,11 +58,7 @@ describe("detectCommunities", () => {
   });
 
   it("three connected nodes (A->B, B->C, A->C) should be in same community", () => {
-    const nodes = [
-      makeNode("e4", "w"),
-      makeNode("d3", "w"),
-      makeNode("f3", "w"),
-    ];
+    const nodes = [makeNode("e4", "w"), makeNode("d3", "w"), makeNode("f3", "w")];
     const edges = [
       makeEdge("e4", "d3", 10, "defense"),
       makeEdge("d3", "f3", 10, "defense"),
@@ -109,11 +105,7 @@ describe("detectCommunities", () => {
   });
 
   it("community IDs should be sequential integers starting from 0", () => {
-    const nodes = [
-      makeNode("a1", "w"),
-      makeNode("h8", "b"),
-      makeNode("d4", "w"),
-    ];
+    const nodes = [makeNode("a1", "w"), makeNode("h8", "b"), makeNode("d4", "w")];
     const communities = detectCommunities(nodes, []);
 
     const ids = new Set(communities.values());
@@ -126,15 +118,8 @@ describe("detectCommunities", () => {
   });
 
   it("all node squares are present as keys in the result", () => {
-    const nodes = [
-      makeNode("e4", "w"),
-      makeNode("d5", "b"),
-      makeNode("f3", "w"),
-    ];
-    const edges = [
-      makeEdge("e4", "d5", 4),
-      makeEdge("f3", "d5", 6),
-    ];
+    const nodes = [makeNode("e4", "w"), makeNode("d5", "b"), makeNode("f3", "w")];
+    const edges = [makeEdge("e4", "d5", 4), makeEdge("f3", "d5", 6)];
     const communities = detectCommunities(nodes, edges);
 
     for (const node of nodes) {

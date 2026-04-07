@@ -18,7 +18,7 @@
  *
  * @module
  */
-import type { GraphNode, GraphEdge } from "#types";
+import type { GraphEdge, GraphNode } from "#types";
 
 export interface PositionScore {
   white: number;

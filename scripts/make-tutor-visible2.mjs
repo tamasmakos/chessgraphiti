@@ -11,7 +11,10 @@ const startMarker = "onClick={() => setTutorMode(!tutorMode)}";
 const endMarker = "Tutor\n";
 
 const startIdx = code.indexOf(startMarker);
-if (startIdx === -1) { console.log("ERROR: cannot find tutor button"); process.exit(1); }
+if (startIdx === -1) {
+  console.log("ERROR: cannot find tutor button");
+  process.exit(1);
+}
 
 // Find the end of the Tutor text node
 const endIdx = code.indexOf(endMarker, startIdx) + endMarker.length;

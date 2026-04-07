@@ -3,7 +3,11 @@ import type * as React from "react";
 
 import { cn } from "#lib/utils";
 
-function Input({ className, type, ...props }: InputPrimitive.Props & React.RefAttributes<HTMLInputElement>) {
+function Input({
+  className,
+  type,
+  ...props
+}: InputPrimitive.Props & React.RefAttributes<HTMLInputElement>) {
   return (
     <InputPrimitive
       type={type}

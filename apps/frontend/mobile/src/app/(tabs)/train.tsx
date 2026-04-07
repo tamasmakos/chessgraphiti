@@ -1,11 +1,9 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, ScrollView, Text, View } from "react-native";
-import { Chess } from "chess.js";
-import type { GraphSnapshot } from "@yourcompany/chess/types";
 import { buildGraph } from "@yourcompany/chess/graph";
+import type { GraphSnapshot } from "@yourcompany/chess/types";
+import { Chess } from "chess.js";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Dimensions, Pressable, Text, } from "react-native";
 
-import { MobileChessBoard } from "#components/chess/MobileChessBoard";
-import { MobileCommunityTiles } from "#components/chess/MobileCommunityTiles";
 
 type PlayerColor = "w" | "b";
 type CentralityMetric =

@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect, useMemo } from "react";
-import type { PieceType, Color, GraphSnapshot } from "@yourcompany/chess/types";
+import type { Color, GraphSnapshot, PieceType } from "@yourcompany/chess/types";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface PieceSelection {
   type: PieceType;
@@ -7,7 +7,12 @@ export interface PieceSelection {
 }
 
 const TYPE_NAMES: Record<PieceType, string> = {
-  k: "King", q: "Queen", r: "Rook", b: "Bishop", n: "Knight", p: "Pawn",
+  k: "King",
+  q: "Queen",
+  r: "Rook",
+  b: "Bishop",
+  n: "Knight",
+  p: "Pawn",
 };
 
 export function pieceFullLabel(color: Color, type: PieceType): string {
@@ -21,8 +26,18 @@ interface PieceTypeSelectorProps {
 }
 
 const PIECE_SYMBOL: Record<string, string> = {
-  wk: "♔", wq: "♕", wr: "♖", wb: "♗", wn: "♘", wp: "♙",
-  bk: "♚", bq: "♛", br: "♜", bb: "♝", bn: "♞", bp: "♟",
+  wk: "♔",
+  wq: "♕",
+  wr: "♖",
+  wb: "♗",
+  wn: "♘",
+  wp: "♙",
+  bk: "♚",
+  bq: "♛",
+  br: "♜",
+  bb: "♝",
+  bn: "♞",
+  bp: "♟",
 };
 
 const TYPE_ORDER: PieceType[] = ["k", "q", "r", "b", "n", "p"];
@@ -37,7 +52,11 @@ interface PieceGroup {
   count: number;
 }
 
-export function PieceTypeSelector({ selected, onChange, snapshot }: Readonly<PieceTypeSelectorProps>) {
+export function PieceTypeSelector({
+  selected,
+  onChange,
+  snapshot,
+}: Readonly<PieceTypeSelectorProps>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -200,19 +219,27 @@ export function PieceTypeSelector({ selected, onChange, snapshot }: Readonly<Pie
           >
             <span className="w-3.5 h-3.5 rounded-sm border border-slate-600 flex items-center justify-center flex-shrink-0">
               {isAll && (
-                <svg aria-hidden="true" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth={2} className="w-2 h-2 text-indigo-400">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 8 8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  className="w-2 h-2 text-indigo-400"
+                >
                   <polyline points="1,4 3,6 7,2" />
                 </svg>
               )}
             </span>
-            <span className="text-[11px]">⬡</span>{" "}
-            All Pieces
+            <span className="text-[11px]">⬡</span> All Pieces
           </button>
 
           <div className="h-px bg-slate-800 mx-2" />
 
           <div className="px-3 py-1">
-            <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">White</div>
+            <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">
+              White
+            </div>
             {whiteGroups.map(renderRow)}
           </div>
 
@@ -220,7 +247,9 @@ export function PieceTypeSelector({ selected, onChange, snapshot }: Readonly<Pie
             <>
               <div className="h-px bg-slate-800 mx-2" />
               <div className="px-3 py-1">
-                <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">Black</div>
+                <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-0.5">
+                  Black
+                </div>
                 {blackGroups.map(renderRow)}
               </div>
             </>

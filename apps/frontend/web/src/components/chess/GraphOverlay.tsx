@@ -1,6 +1,6 @@
-import React, { useId, useMemo } from "react";
 import { getAttackedSquares, parsePieces } from "@yourcompany/chess/graph";
 import type { GraphEdge } from "@yourcompany/chess/types";
+import React, { useId, useMemo } from "react";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -74,11 +74,9 @@ function squareToTopLeft(
   const rank = Number.parseInt(square[1] ?? "1", 10) - 1;
   const squareSize = boardWidth / 8;
 
-  const x =
-    orientation === "white" ? file * squareSize : (7 - file) * squareSize;
+  const x = orientation === "white" ? file * squareSize : (7 - file) * squareSize;
 
-  const y =
-    orientation === "white" ? (7 - rank) * squareSize : rank * squareSize;
+  const y = orientation === "white" ? (7 - rank) * squareSize : rank * squareSize;
 
   return { x, y };
 }
@@ -198,15 +196,15 @@ export const GraphOverlay = React.memo(function GraphOverlay({
 
     const maxControllers = Math.max(
       ...[...bySquare.values()].map(
-        (entry) =>
-          entry.whiteControllers.size + entry.blackControllers.size,
+        (entry) => entry.whiteControllers.size + entry.blackControllers.size,
       ),
       1,
     );
     const maxSideControllers = Math.max(
-      ...[...bySquare.values()].flatMap(
-        (entry) => [entry.whiteControllers.size, entry.blackControllers.size]
-      ),
+      ...[...bySquare.values()].flatMap((entry) => [
+        entry.whiteControllers.size,
+        entry.blackControllers.size,
+      ]),
       1,
     );
     const squareSize = boardWidth / 8;
@@ -243,28 +241,20 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           : 0;
 
       const whiteY =
-        orientation === "white"
-          ? y + squareSize - padding - whiteThickness
-          : y + padding;
+        orientation === "white" ? y + squareSize - padding - whiteThickness : y + padding;
 
       const blackY =
-        orientation === "white"
-          ? y + padding
-          : y + squareSize - padding - blackThickness;
+        orientation === "white" ? y + padding : y + squareSize - padding - blackThickness;
 
       const whiteLength =
-        whiteCount > 0
-          ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(whiteIntensity))
-          : 0;
+        whiteCount > 0 ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(whiteIntensity)) : 0;
       const blackLength =
-        blackCount > 0
-          ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(blackIntensity))
-          : 0;
+        blackCount > 0 ? Math.max(squareSize * 0.15, maxBarLength * Math.sqrt(blackIntensity)) : 0;
 
       const whiteX = x + (squareSize - whiteLength) / 2;
       const blackX = x + (squareSize - blackLength) / 2;
 
-      // When pressure is very high, shift colors slightly hotter 
+      // When pressure is very high, shift colors slightly hotter
       // Rose-500 is rgba(244,63,94,1), if intense shift to Rose-400 or lighter
       const whiteColor = whiteIntensity > 0.8 ? "rgba(251,113,133,1)" : "rgba(244,63,94,1)";
       // Teal-500 is rgba(20,184,166,1), if intense shift to Teal-400
@@ -347,8 +337,6 @@ export const GraphOverlay = React.memo(function GraphOverlay({
         >
           <polygon points="0 2, 10 6, 0 10" fill={HINT_COLOR} />
         </marker>
-
-
       </defs>
 
       {dominanceCells.map((cell) => (
@@ -417,9 +405,7 @@ export const GraphOverlay = React.memo(function GraphOverlay({
           strokeDasharray={line.dashArray}
           fill="none"
           markerEnd={
-            line.isAttack
-              ? `url(#arrow-attack-${overlayId})`
-              : `url(#arrow-defense-${overlayId})`
+            line.isAttack ? `url(#arrow-attack-${overlayId})` : `url(#arrow-defense-${overlayId})`
           }
         />
       ))}

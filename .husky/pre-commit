@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mts' '*.cts' '*.json' '*.jsonc' '*.css' '*.md' '*.html' \
+	| xargs -0 --no-run-if-empty pnpm exec biome check --files-ignore-unknown=true --css-parse-tailwind-directives=true --no-errors-on-unmatched

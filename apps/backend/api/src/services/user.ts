@@ -1,10 +1,9 @@
-import { type Result, err, fromAsyncThrowable } from "neverthrow";
-import { validateInput } from "@yourcompany/backend-core/validation";
-import { z } from "zod";
 import type { DB } from "@yourcompany/backend-core/db";
 import type { Logger } from "@yourcompany/backend-core/log";
-import { typedError } from "@yourcompany/backend-core/validation";
 import type { User } from "@yourcompany/backend-core/types";
+import { typedError, validateInput } from "@yourcompany/backend-core/validation";
+import { err, fromAsyncThrowable, type Result } from "neverthrow";
+import { z } from "zod";
 export const onUserCreatedSchema = z.object({
   userId: z.uuid(),
 });
@@ -69,7 +68,11 @@ export class UserService {
     )();
   }
 
-  static async onUserCreated(db: DB, logger: Logger, input: OnUserCreatedInput): Promise<OnUserCreatedResult> {
+  static async onUserCreated(
+    db: DB,
+    logger: Logger,
+    input: OnUserCreatedInput,
+  ): Promise<OnUserCreatedResult> {
     const validated = validateInput(onUserCreatedSchema, input);
     if (validated.isErr()) {
       return err(validated.error);

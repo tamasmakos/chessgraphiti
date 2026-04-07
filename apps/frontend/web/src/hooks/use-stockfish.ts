@@ -5,12 +5,13 @@
  * to request engine moves and evaluations. Bridges the StockfishWeb
  * implementation with the game store.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { StockfishWeb } from "#lib/stockfish";
-import { BackendEngineClient } from "#lib/backend-engine";
+
 import type { ChessEngine } from "@yourcompany/chess/types";
-import { useGameStore } from "#stores/game-store";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApi } from "#lib/api";
+import { BackendEngineClient } from "#lib/backend-engine";
+import { StockfishWeb } from "#lib/stockfish";
+import { useGameStore } from "#stores/game-store";
 
 interface UseStockfishReturn {
   /** Whether the engine is loaded and ready */
@@ -98,7 +99,6 @@ export function useStockfish(): UseStockfishReturn {
     // Only move if it's the engine's turn
     if (turnColor === store.playerColor) return;
 
-
     // Use Stockfish for free play
     setEngineThinking(true);
     try {
@@ -126,8 +126,7 @@ export function useStockfish(): UseStockfishReturn {
       if (bestMove && bestMove.length >= 4) {
         const from = bestMove.substring(0, 2);
         const to = bestMove.substring(2, 4);
-        const promotion =
-          bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
+        const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : undefined;
         makeMove(from, to, promotion);
       }
     } catch (err) {

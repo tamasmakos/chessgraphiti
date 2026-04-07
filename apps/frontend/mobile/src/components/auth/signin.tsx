@@ -1,12 +1,12 @@
 import { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
+  View,
 } from "react-native";
 import { signIn } from "#lib/auth";
 import { useSession } from "#providers/session-provider";
@@ -79,7 +79,8 @@ export const SignIn = ({ onSuccess }: SignInProps) => {
         <TouchableOpacity
           style={[styles.button, (isLoading || !email || !password) && styles.buttonDisabled]}
           onPress={handleSubmit}
-          disabled={isLoading || !email || !password}>
+          disabled={isLoading || !email || !password}
+        >
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (

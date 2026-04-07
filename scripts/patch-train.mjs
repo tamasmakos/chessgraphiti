@@ -18,8 +18,8 @@ src = src.replace(
 
 // ── 2. Add TutorArrowOverlay + TutorRankingPanel to chess index import ────────
 src = src.replace(
-  "  FluidFieldOverlay,\n} from \"#components/chess/index\";",
-  "  FluidFieldOverlay,\n  TutorArrowOverlay,\n  TutorRankingPanel,\n} from \"#components/chess/index\";",
+  '  FluidFieldOverlay,\n} from "#components/chess/index";',
+  '  FluidFieldOverlay,\n  TutorArrowOverlay,\n  TutorRankingPanel,\n} from "#components/chess/index";',
 );
 
 // ── 3. Add new store reads after history ─────────────────────────────────────

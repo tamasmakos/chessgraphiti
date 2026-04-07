@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeCommunityLineage, computeNextStepLineage } from "../community-lineage.ts";
-import type { GraphSnapshot, GraphNode } from "../types.ts";
+import type { GraphNode, GraphSnapshot } from "../types.ts";
 
 function node(square: string, communityId: number): GraphNode {
   return {
@@ -77,14 +77,14 @@ describe("computeNextStepLineage", () => {
   it("incrementally adds steps while maintaining color stability", () => {
     const s0 = snapshot([node("a1", 0), node("h8", 1)]);
     const lineage0 = computeNextStepLineage(s0, null, null);
-    
+
     expect(lineage0.stableColorByStep).toHaveLength(1);
     const color0 = lineage0.stableColorByStep[0]?.[0];
     const color1 = lineage0.stableColorByStep[0]?.[1];
 
     const s1 = snapshot([node("a1", 5), node("h8", 6)]);
     const lineage1 = computeNextStepLineage(s1, s0, lineage0);
-    
+
     expect(lineage1.stableColorByStep).toHaveLength(2);
     expect(lineage1.stableColorByStep[1]?.[5]).toBe(color0);
     expect(lineage1.stableColorByStep[1]?.[6]).toBe(color1);

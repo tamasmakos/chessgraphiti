@@ -1,13 +1,13 @@
+import { useRouter } from "expo-router";
 import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SignIn } from "#components/auth/signin";
-import { useRouter } from "expo-router";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -15,7 +15,8 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}>
+      style={styles.container}
+    >
       <View style={styles.content}>
         <SignIn />
 

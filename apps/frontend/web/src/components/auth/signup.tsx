@@ -1,10 +1,16 @@
-import { useState } from "react";
-import { signUp } from "#lib/auth";
 import { Button } from "@yourcompany/web/components/base/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@yourcompany/web/components/base/card";
 import { Input } from "@yourcompany/web/components/base/input";
 import { Label } from "@yourcompany/web/components/base/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@yourcompany/web/components/base/card";
 import { Spinner } from "@yourcompany/web/components/base/spinner";
+import { useState } from "react";
+import { signUp } from "#lib/auth";
 
 interface SignUpProps {
   onSuccess?: () => void;
@@ -117,7 +123,11 @@ export const SignUp = ({ onSuccess, className }: SignUpProps) => {
             />
           </div>
 
-          {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">{error}</div>}
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+              {error}
+            </div>
+          )}
 
           <Button
             type="submit"

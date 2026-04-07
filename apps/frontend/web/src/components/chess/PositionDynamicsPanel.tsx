@@ -45,12 +45,8 @@ export function PositionDynamicsPanel({ snapshot }: PositionDynamicsPanelProps) 
               {item.label}
             </span>
             <div className="flex items-center justify-between gap-1">
-              <span className="text-[11px] font-mono text-slate-200">
-                {item.white.toFixed(2)}
-              </span>
-              <span className="text-[11px] font-mono text-slate-500">
-                {item.black.toFixed(2)}
-              </span>
+              <span className="text-[11px] font-mono text-slate-200">{item.white.toFixed(2)}</span>
+              <span className="text-[11px] font-mono text-slate-500">{item.black.toFixed(2)}</span>
             </div>
             <div className="h-1 rounded-full overflow-hidden flex gap-px">
               <div

@@ -1,10 +1,10 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { SessionProvider } from "#providers/session-provider";
+import { ThemeProvider } from "next-themes";
+import { AuthGuard } from "#components/auth/auth-guard";
+import { getConfig } from "#lib/config";
 import { AuthProvider } from "#providers/auth-provider";
 import { ORPCProvider } from "#providers/orpc-provider";
-import { ThemeProvider } from "next-themes";
-import { getConfig } from "#lib/config";
-import { AuthGuard } from "#components/auth/auth-guard";
+import { SessionProvider } from "#providers/session-provider";
 
 const config = getConfig();
 
@@ -18,7 +18,10 @@ function RootComponent() {
               <div className="min-h-dvh flex flex-col">
                 <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                   <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-                    <Link to="/" className="font-semibold tracking-tight text-foreground hover:opacity-90">
+                    <Link
+                      to="/"
+                      className="font-semibold tracking-tight text-foreground hover:opacity-90"
+                    >
                       ChessGraphiti
                     </Link>
                     <nav className="flex items-center gap-3 text-sm">

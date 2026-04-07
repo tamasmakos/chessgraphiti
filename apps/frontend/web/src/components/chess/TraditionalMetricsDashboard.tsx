@@ -1,7 +1,6 @@
-import type React from "react";
-import { useMemo } from "react";
-import { Chess } from "chess.js";
 import type { Square } from "chess.js";
+import { Chess } from "chess.js";
+import { useMemo } from "react";
 
 interface TraditionalMetricsDashboardProps {
   fen: string;
@@ -9,10 +8,18 @@ interface TraditionalMetricsDashboardProps {
 }
 
 const PIECE_VALUES: Record<string, number> = {
-  p: 1, n: 3, b: 3, r: 5, q: 9, k: 0,
+  p: 1,
+  n: 3,
+  b: 3,
+  r: 5,
+  q: 9,
+  k: 0,
 };
 
-export function TraditionalMetricsDashboard({ fen, compact = false }: TraditionalMetricsDashboardProps) {
+export function TraditionalMetricsDashboard({
+  fen,
+  compact = false,
+}: TraditionalMetricsDashboardProps) {
   const metrics = useMemo(() => {
     const game = new Chess(fen);
     const board = game.board();
@@ -153,9 +160,7 @@ export function TraditionalMetricsDashboard({ fen, compact = false }: Traditiona
                 {item.label}
               </span>
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] font-mono text-slate-200">
-                  {item.white}
-                </span>
+                <span className="text-[11px] font-mono text-slate-200">{item.white}</span>
                 {item.diff !== undefined && (
                   <span
                     className={`text-[9px] font-mono font-bold ${
@@ -169,9 +174,7 @@ export function TraditionalMetricsDashboard({ fen, compact = false }: Traditiona
                     {item.diff > 0 ? `+${item.diff}` : item.diff}
                   </span>
                 )}
-                <span className="text-[11px] font-mono text-slate-500">
-                  {item.black}
-                </span>
+                <span className="text-[11px] font-mono text-slate-500">{item.black}</span>
               </div>
               <div className="h-1 rounded-full overflow-hidden flex gap-px">
                 <div
@@ -194,19 +197,44 @@ export function TraditionalMetricsDashboard({ fen, compact = false }: Traditiona
   return (
     <div className="grid grid-cols-2 gap-3">
       {[
-        { label: "Material", white: metrics.material.white, black: metrics.material.black, diff: metrics.material.diff },
-        { label: "Center", white: metrics.center.white, black: metrics.center.black, diff: undefined },
-        { label: "Development", white: metrics.development.white, black: metrics.development.black, diff: undefined },
-        { label: "Pawn Shield", white: metrics.safety.white, black: metrics.safety.black, diff: undefined },
+        {
+          label: "Material",
+          white: metrics.material.white,
+          black: metrics.material.black,
+          diff: metrics.material.diff,
+        },
+        {
+          label: "Center",
+          white: metrics.center.white,
+          black: metrics.center.black,
+          diff: undefined,
+        },
+        {
+          label: "Development",
+          white: metrics.development.white,
+          black: metrics.development.black,
+          diff: undefined,
+        },
+        {
+          label: "Pawn Shield",
+          white: metrics.safety.white,
+          black: metrics.safety.black,
+          diff: undefined,
+        },
       ].map((item) => {
         const total = item.white + item.black || 1;
         const whitePct = (item.white / total) * 100;
         return (
-          <div key={item.label} className="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5">
+          <div
+            key={item.label}
+            className="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5"
+          >
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-medium text-slate-300">{item.label}</span>
               {item.diff !== undefined && (
-                <span className={`text-[9px] font-mono font-bold ${item.diff > 0 ? "text-emerald-400" : item.diff < 0 ? "text-rose-400" : "text-slate-500"}`}>
+                <span
+                  className={`text-[9px] font-mono font-bold ${item.diff > 0 ? "text-emerald-400" : item.diff < 0 ? "text-rose-400" : "text-slate-500"}`}
+                >
                   {item.diff > 0 ? `+${item.diff}` : item.diff}
                 </span>
               )}
@@ -216,8 +244,14 @@ export function TraditionalMetricsDashboard({ fen, compact = false }: Traditiona
               <span className="text-xs font-mono text-slate-400">{item.black}</span>
             </div>
             <div className="flex h-1 gap-0.5 rounded-full overflow-hidden">
-              <div className="bg-white/80 transition-all duration-500" style={{ width: `${whitePct}%` }} />
-              <div className="bg-slate-600/80 transition-all duration-500" style={{ width: `${100 - whitePct}%` }} />
+              <div
+                className="bg-white/80 transition-all duration-500"
+                style={{ width: `${whitePct}%` }}
+              />
+              <div
+                className="bg-slate-600/80 transition-all duration-500"
+                style={{ width: `${100 - whitePct}%` }}
+              />
             </div>
           </div>
         );
