@@ -1,15 +1,8 @@
+import type { GraphNode } from "@yourcompany/chess/types";
 import { useMemo, useState } from "react";
 import { Chessboard } from "react-chessboard";
-import type { GraphNode } from "@yourcompany/chess/types";
-import { useGameStore } from "#stores/game-store";
 
-type CentralityMetric =
-  | "weighted"
-  | "degree"
-  | "betweenness"
-  | "closeness"
-  | "pagerank"
-  | "none";
+type CentralityMetric = "weighted" | "degree" | "betweenness" | "closeness" | "pagerank" | "none";
 
 interface ChessBoardProps {
   /** Current board position in FEN notation */
@@ -116,14 +109,12 @@ export function ChessBoard({
         if (raw !== undefined) {
           const ratio = raw / max;
           // Min/max scale span ~40% (was ~14%) so high-centrality pieces read clearly.
-          scale = 0.72 + ratio * 0.40;
+          scale = 0.72 + ratio * 0.4;
         }
       }
 
       return (
-        <div
-          style={base}
-        >
+        <div style={base}>
           <div
             style={{
               width: "100%",
@@ -155,7 +146,9 @@ export function ChessBoard({
       boardOrientation: orientation as "white" | "black",
       allowDragging: interactive,
       darkSquareStyle: { backgroundColor: "var(--cg-board-dark, #64748b)" } as React.CSSProperties,
-      lightSquareStyle: { backgroundColor: "var(--cg-board-light, #e2e8f0)" } as React.CSSProperties,
+      lightSquareStyle: {
+        backgroundColor: "var(--cg-board-light, #e2e8f0)",
+      } as React.CSSProperties,
       animationDurationInMs: 200,
       boardStyle: { borderRadius: "0.5rem" } as React.CSSProperties,
       squareRenderer: scaledSquareRenderer,
@@ -164,7 +157,7 @@ export function ChessBoard({
         : {},
       ...(interactive && onPieceDrop
         ? {
-            onSquareClick: ({ square }: { square: string, piece?: unknown }) => {
+            onSquareClick: ({ square }: { square: string; piece?: unknown }) => {
               if (!moveFrom) {
                 setMoveFrom(square);
                 return;
@@ -205,9 +198,7 @@ export function ChessBoard({
     >
       <Chessboard options={options} />
 
-      {children && (
-        <div className="absolute inset-0 pointer-events-none">{children}</div>
-      )}
+      {children && <div className="absolute inset-0 pointer-events-none">{children}</div>}
     </div>
   );
 }

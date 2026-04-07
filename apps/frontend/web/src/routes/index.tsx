@@ -1,6 +1,12 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@yourcompany/web/components/base/card";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@yourcompany/web/components/base/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@yourcompany/web/components/base/card";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -13,8 +19,9 @@ function HomeComponent() {
         <CardHeader>
           <CardTitle className="text-2xl">Chess you can see.</CardTitle>
           <CardDescription className="text-base">
-            Stop memorizing moves. Start understanding why positions are strong. Every piece is a node,
-            every attack and defence a live edge — see the structure of the game as it happens.
+            Stop memorizing moves. Start understanding why positions are strong. Every piece is a
+            node, every attack and defence a live edge — see the structure of the game as it
+            happens.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -42,8 +49,8 @@ function HomeComponent() {
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Graph community detection clusters your pieces into coalitions. Watch alliances
-              form, break, and reform as the game evolves.
+              Graph community detection clusters your pieces into coalitions. Watch alliances form,
+              break, and reform as the game evolves.
             </CardDescription>
           </CardContent>
         </Card>
@@ -53,8 +60,8 @@ function HomeComponent() {
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Centrality metrics reveal which pieces dominate the position — not by material
-              value, but by structural influence.
+              Centrality metrics reveal which pieces dominate the position — not by material value,
+              but by structural influence.
             </CardDescription>
           </CardContent>
         </Card>

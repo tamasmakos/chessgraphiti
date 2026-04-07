@@ -25,25 +25,24 @@ import type { BestMoveResult, EvaluationResult, SearchOptions } from "#types";
  * @throws {Error} If no "bestmove" line is found in the output
  */
 export function parseBestMove(output: string): BestMoveResult {
-	const lines = output.trim().split("\n");
-	const bestMoveLine = lines.findLast((line) => line.startsWith("bestmove"));
+  const lines = output.trim().split("\n");
+  const bestMoveLine = lines.findLast((line) => line.startsWith("bestmove"));
 
-	if (!bestMoveLine) {
-		throw new Error('No "bestmove" line found in UCI output');
-	}
+  if (!bestMoveLine) {
+    throw new Error('No "bestmove" line found in UCI output');
+  }
 
-	const tokens = bestMoveLine.split(/\s+/);
-	const bestMove = tokens[1];
+  const tokens = bestMoveLine.split(/\s+/);
+  const bestMove = tokens[1];
 
-	if (!bestMove) {
-		throw new Error("Malformed bestmove line: missing move token");
-	}
+  if (!bestMove) {
+    throw new Error("Malformed bestmove line: missing move token");
+  }
 
-	const ponderIndex = tokens.indexOf("ponder");
-	const ponder =
-		ponderIndex !== -1 ? tokens[ponderIndex + 1] : undefined;
+  const ponderIndex = tokens.indexOf("ponder");
+  const ponder = ponderIndex !== -1 ? tokens[ponderIndex + 1] : undefined;
 
-	return ponder ? { bestMove, ponder } : { bestMove };
+  return ponder ? { bestMove, ponder } : { bestMove };
 }
 
 /**
@@ -66,84 +65,82 @@ export function parseBestMove(output: string): BestMoveResult {
  * @throws {Error} If no parseable "info depth" line is found
  */
 export function parseEvaluation(output: string): EvaluationResult {
-	const lines = output.trim().split("\n");
-	const infoLine = lines.findLast(
-		(line) => line.startsWith("info") && line.includes("depth"),
-	);
+  const lines = output.trim().split("\n");
+  const infoLine = lines.findLast((line) => line.startsWith("info") && line.includes("depth"));
 
-	if (!infoLine) {
-		throw new Error('No "info depth" line found in UCI output');
-	}
+  if (!infoLine) {
+    throw new Error('No "info depth" line found in UCI output');
+  }
 
-	const tokens = infoLine.split(/\s+/);
+  const tokens = infoLine.split(/\s+/);
 
-	// --- depth ---
-	const depthIdx = tokens.indexOf("depth");
-	const depth = depthIdx !== -1 ? Number(tokens[depthIdx + 1]) : 0;
+  // --- depth ---
+  const depthIdx = tokens.indexOf("depth");
+  const depth = depthIdx !== -1 ? Number(tokens[depthIdx + 1]) : 0;
 
-	// --- score (cp or mate) ---
-	const scoreIdx = tokens.indexOf("score");
-	let score = 0;
-	let mate: number | undefined;
+  // --- score (cp or mate) ---
+  const scoreIdx = tokens.indexOf("score");
+  let score = 0;
+  let mate: number | undefined;
 
-	if (scoreIdx !== -1) {
-		const scoreType = tokens[scoreIdx + 1];
-		const scoreValue = Number(tokens[scoreIdx + 2]);
+  if (scoreIdx !== -1) {
+    const scoreType = tokens[scoreIdx + 1];
+    const scoreValue = Number(tokens[scoreIdx + 2]);
 
-		if (scoreType === "cp") {
-			score = scoreValue;
-		} else if (scoreType === "mate") {
-			mate = scoreValue;
-			// Represent mate score as a large centipawn value (sign indicates side)
-			score = scoreValue > 0 ? 100_000 - scoreValue : -100_000 - scoreValue;
-		}
-	}
+    if (scoreType === "cp") {
+      score = scoreValue;
+    } else if (scoreType === "mate") {
+      mate = scoreValue;
+      // Represent mate score as a large centipawn value (sign indicates side)
+      score = scoreValue > 0 ? 100_000 - scoreValue : -100_000 - scoreValue;
+    }
+  }
 
-	// --- nodes ---
-	const nodesIdx = tokens.indexOf("nodes");
-	const nodes = nodesIdx !== -1 ? Number(tokens[nodesIdx + 1]) : 0;
+  // --- nodes ---
+  const nodesIdx = tokens.indexOf("nodes");
+  const nodes = nodesIdx !== -1 ? Number(tokens[nodesIdx + 1]) : 0;
 
-	// --- pv (principal variation, all tokens after "pv" until end or next keyword) ---
-	const pvIdx = tokens.indexOf("pv");
-	const pv: string[] = [];
+  // --- pv (principal variation, all tokens after "pv" until end or next keyword) ---
+  const pvIdx = tokens.indexOf("pv");
+  const pv: string[] = [];
 
-	if (pvIdx !== -1) {
-		// Known UCI info keywords that would terminate the PV token sequence
-		const infoKeywords = new Set([
-			"depth",
-			"seldepth",
-			"multipv",
-			"score",
-			"nodes",
-			"nps",
-			"hashfull",
-			"tbhits",
-			"time",
-			"currmove",
-			"currmovenumber",
-			"string",
-			"refutation",
-			"currline",
-			"bmc",
-		]);
+  if (pvIdx !== -1) {
+    // Known UCI info keywords that would terminate the PV token sequence
+    const infoKeywords = new Set([
+      "depth",
+      "seldepth",
+      "multipv",
+      "score",
+      "nodes",
+      "nps",
+      "hashfull",
+      "tbhits",
+      "time",
+      "currmove",
+      "currmovenumber",
+      "string",
+      "refutation",
+      "currline",
+      "bmc",
+    ]);
 
-		for (let i = pvIdx + 1; i < tokens.length; i++) {
-			const token = tokens[i];
-			if (token !== undefined && !infoKeywords.has(token)) {
-				pv.push(token);
-			} else {
-				break;
-			}
-		}
-	}
+    for (let i = pvIdx + 1; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (token !== undefined && !infoKeywords.has(token)) {
+        pv.push(token);
+      } else {
+        break;
+      }
+    }
+  }
 
-	const result: EvaluationResult = { score, depth, pv, nodes };
+  const result: EvaluationResult = { score, depth, pv, nodes };
 
-	if (mate !== undefined) {
-		result.mate = mate;
-	}
+  if (mate !== undefined) {
+    result.mate = mate;
+  }
 
-	return result;
+  return result;
 }
 
 /**
@@ -171,24 +168,24 @@ export function parseEvaluation(output: string): EvaluationResult {
  * @returns A complete UCI "go" command string
  */
 export function buildGoCommand(options: SearchOptions): string {
-	const parts: string[] = ["go"];
+  const parts: string[] = ["go"];
 
-	if (options.depth !== undefined) {
-		parts.push("depth", String(options.depth));
-	}
+  if (options.depth !== undefined) {
+    parts.push("depth", String(options.depth));
+  }
 
-	if (options.moveTime !== undefined) {
-		parts.push("movetime", String(options.moveTime));
-	}
+  if (options.moveTime !== undefined) {
+    parts.push("movetime", String(options.moveTime));
+  }
 
-	if (options.nodes !== undefined) {
-		parts.push("nodes", String(options.nodes));
-	}
+  if (options.nodes !== undefined) {
+    parts.push("nodes", String(options.nodes));
+  }
 
-	// Default to depth 20 if no constraints were specified
-	if (parts.length === 1) {
-		parts.push("depth", "20");
-	}
+  // Default to depth 20 if no constraints were specified
+  if (parts.length === 1) {
+    parts.push("depth", "20");
+  }
 
-	return parts.join(" ");
+  return parts.join(" ");
 }

@@ -10,30 +10,19 @@
  * @module
  */
 import { Chess } from "chess.js";
-import { fromThrowable, ok, err, type Result } from "neverthrow";
-
-import type {
-  PieceInfo,
-  GraphNode,
-  GraphEdge,
-  GraphSnapshot,
-  AttackMap,
-  DefenseMap,
-} from "#types";
-import { PIECE_VALUES, PIECE_DIRECTIONS, SQUARES } from "#constants";
-import { buildEdges } from "#edge-weights";
-import { detectCommunities } from "#community";
+import { err, ok, type Result } from "neverthrow";
 import {
   computeBetweennessCentrality,
-  computeDegreeCentrality,
-  computeWeightedDegreeCentrality,
   computeClosenessCentrality,
+  computeDegreeCentrality,
   computePageRankCentrality,
+  computeWeightedDegreeCentrality,
 } from "#centrality";
-import {
-  computePositionFragility,
-  computeStrategicTension,
-} from "#position-metrics";
+import { detectCommunities } from "#community";
+import { PIECE_DIRECTIONS, PIECE_VALUES, SQUARES } from "#constants";
+import { buildEdges } from "#edge-weights";
+import { computePositionFragility, computeStrategicTension } from "#position-metrics";
+import type { AttackMap, DefenseMap, GraphNode, GraphSnapshot, PieceInfo } from "#types";
 
 // ---------------------------------------------------------------------------
 // Step 1: Parse pieces from FEN
@@ -310,10 +299,10 @@ export function buildGraph(fen: string): Result<GraphSnapshot, Error> {
     for (const node of nodes) {
       const weight = Math.min(node.value, MAX_PIECE_WEIGHT) / MAX_PIECE_WEIGHT;
       node.centralityBetweenness *= weight;
-      node.centralityDegree      *= weight;
-      node.centralityWeighted    *= weight;
-      node.centralityCloseness   *= weight;
-      node.centralityPageRank    *= weight;
+      node.centralityDegree *= weight;
+      node.centralityWeighted *= weight;
+      node.centralityCloseness *= weight;
+      node.centralityPageRank *= weight;
     }
 
     // Step 8: Position-level metrics

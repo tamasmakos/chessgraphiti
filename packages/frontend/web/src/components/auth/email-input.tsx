@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { cn } from "#lib/utils";
-import { Input } from "#components/base/input.tsx";
 import { Button } from "#components/base/button.tsx";
+import { Input } from "#components/base/input.tsx";
+import { cn } from "#lib/utils";
 
 interface EmailInputProps {
   onSubmit: (email: string) => void;
@@ -10,7 +10,12 @@ interface EmailInputProps {
   className?: string;
 }
 
-export function EmailInput({ onSubmit, isLoading, placeholder = "your@email.com", className }: EmailInputProps) {
+export function EmailInput({
+  onSubmit,
+  isLoading,
+  placeholder = "your@email.com",
+  className,
+}: EmailInputProps) {
   const [email, setEmail] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {

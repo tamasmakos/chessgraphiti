@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { dbConfigSchema } from "@yourcompany/backend-core/config";
+import { z } from "zod";
 
 const apiConfigSchema = z.object({
   env: z.enum(["dev", "production", "test", "staging"]),
@@ -48,7 +48,9 @@ export const appConfig = apiConfigSchema.parse({
   baseServiceUrl: process.env.BASE_SERVICE_URL,
   cors: {
     origins: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
+      ? process.env.CORS_ORIGINS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : ["http://localhost:4002", "http://localhost:3000"],
   },
   auth: {
@@ -61,7 +63,9 @@ export const appConfig = apiConfigSchema.parse({
           }
         : undefined,
   },
-  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean),
+  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
   engine: {
     modelsDir: process.env.ENGINE_MODELS_DIR ?? "models",
     booksDir: process.env.ENGINE_BOOKS_DIR ?? "books",

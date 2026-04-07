@@ -10,7 +10,7 @@
  * All functions return `Map<string, number>` keyed by square (e.g., "e4")
  * with values normalized to the 0-1 range.
  */
-import type { GraphNode, GraphEdge } from "#types";
+import type { GraphEdge, GraphNode } from "#types";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -343,7 +343,7 @@ export function computePageRankCentrality(
       for (const { from, weight } of inc) {
         const out = outgoingWeight.get(from) ?? 0;
         if (out > 0) {
-          rank += damping * ((scores.get(from) ?? 0) * weight) / out;
+          rank += (damping * ((scores.get(from) ?? 0) * weight)) / out;
         }
       }
       next.set(node.square, rank);

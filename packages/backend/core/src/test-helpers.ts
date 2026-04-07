@@ -1,13 +1,11 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { Client } from "pg";
-import { CamelCasePlugin, Kysely, PostgresDialect, sql } from "kysely";
-import type { DB as DatabaseSchema } from "#schema";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { CamelCasePlugin, Kysely, PostgresDialect, sql } from "kysely";
+import { Client, Pool } from "pg";
 import type { DB } from "#db";
+import type { DB as DatabaseSchema } from "#schema";
 
 export function findSchemaDir(): string {
   let currentDirPath = __dirname;
@@ -117,7 +115,10 @@ export async function createTestUser(db: DB) {
  * This is useful for test isolation when manual table cleanup becomes complex
  * @deprecated Use resetSharedDatabase() with snapshots instead (much faster)
  */
-export async function resetDatabase(db: Kysely<DatabaseSchema>, connectionString: string): Promise<void> {
+export async function resetDatabase(
+  db: Kysely<DatabaseSchema>,
+  connectionString: string,
+): Promise<void> {
   try {
     // Drop and recreate the public schema (this removes all tables, functions, etc.)
     await sql`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`.execute(db);
@@ -231,7 +232,9 @@ let resetMutex: Promise<void> = Promise.resolve();
 
 export async function resetSharedDatabase(): Promise<void> {
   if (!sharedDatabaseHelper) {
-    throw new Error("Shared database helper not initialized. Call getSharedDatabaseHelper() first.");
+    throw new Error(
+      "Shared database helper not initialized. Call getSharedDatabaseHelper() first.",
+    );
   }
 
   // Thread-safe reset: waits for previous reset to complete before starting new one

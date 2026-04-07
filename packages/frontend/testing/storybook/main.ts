@@ -19,7 +19,12 @@ export const baseMain = {
     name: "@storybook/react-vite",
     options: {},
   },
-  addons: ["@storybook/addon-links", "@storybook/addon-a11y", "@storybook/addon-docs", "@storybook/addon-themes"],
+  addons: [
+    "@storybook/addon-links",
+    "@storybook/addon-a11y",
+    "@storybook/addon-docs",
+    "@storybook/addon-themes",
+  ],
   docs: { defaultName: "Docs" },
   stories: defaultStories,
   async viteFinal(config) {

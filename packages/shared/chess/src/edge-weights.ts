@@ -16,7 +16,7 @@
  * no useful tactical meaning and their disproportionate value would dominate
  * the visualisation).
  */
-import type { PieceInfo, GraphEdge, AttackMap } from "#types";
+import type { AttackMap, GraphEdge, PieceInfo } from "#types";
 
 /**
  * Static Exchange Evaluation (SEE).
@@ -80,10 +80,7 @@ export function computeDefenseWeight(defender: PieceInfo, target: PieceInfo): nu
  * @param attackMap - Map of each piece's attacked squares (pseudo-legal)
  * @returns Array of weighted directed edges
  */
-export function buildEdges(
-  pieces: PieceInfo[],
-  attackMap: AttackMap,
-): GraphEdge[] {
+export function buildEdges(pieces: PieceInfo[], attackMap: AttackMap): GraphEdge[] {
   const edges: GraphEdge[] = [];
   const pieceBySquare = new Map<string, PieceInfo>();
   for (const p of pieces) {
@@ -114,12 +111,7 @@ export function buildEdges(
         // Actor initiates the capture; remaining same-color non-King pieces
         // fill the follow-up slots, sorted cheapest-first.
         const otherMine = allAttackers
-          .filter(
-            (p) =>
-              p.color === actor.color &&
-              p.square !== actor.square &&
-              p.type !== "k",
-          )
+          .filter((p) => p.color === actor.color && p.square !== actor.square && p.type !== "k")
           .map((p) => p.value)
           .sort((a, b) => a - b);
         const seeMyAttackers = [actor.value, ...otherMine];
@@ -130,11 +122,7 @@ export function buildEdges(
           .map((p) => p.value)
           .sort((a, b) => a - b);
 
-        const weight = computeSEE(
-          target.value,
-          seeMyAttackers,
-          seeTheirAttackers,
-        );
+        const weight = computeSEE(target.value, seeMyAttackers, seeTheirAttackers);
 
         if (weight > 0) {
           edges.push({

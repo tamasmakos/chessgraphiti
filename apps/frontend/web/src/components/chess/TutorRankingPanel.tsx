@@ -12,11 +12,7 @@ interface TutorRankingPanelProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TutorRankingPanel({
-  ranking,
-  winProb,
-  isAnalyzing,
-}: TutorRankingPanelProps) {
+export function TutorRankingPanel({ ranking, winProb, isAnalyzing }: TutorRankingPanelProps) {
   const top10 = ranking.slice(0, 10);
 
   const scores = top10.map((r) => r.score);
@@ -33,15 +29,11 @@ export function TutorRankingPanel({
             Tutor
           </span>
           {isAnalyzing && (
-            <span className="text-[9px] text-slate-500 font-mono animate-pulse">
-              analyzing…
-            </span>
+            <span className="text-[9px] text-slate-500 font-mono animate-pulse">analyzing…</span>
           )}
         </div>
         {winProb !== undefined && (
-          <span className="text-[10px] font-mono text-emerald-400">
-            {winProb.toFixed(1)}% W
-          </span>
+          <span className="text-[10px] font-mono text-emerald-400">{winProb.toFixed(1)}% W</span>
         )}
       </div>
 
@@ -52,18 +44,12 @@ export function TutorRankingPanel({
 
       <div className="flex flex-col gap-0.5">
         {top10.map((entry, i) => {
-          const norm =
-            maxScore === minScore
-              ? 1
-              : (entry.score - minScore) / (maxScore - minScore);
+          const norm = maxScore === minScore ? 1 : (entry.score - minScore) / (maxScore - minScore);
           const hue = Math.round(norm * 120);
           const isBest = i === 0;
 
           return (
-            <div
-              key={entry.move}
-              className="flex items-center gap-2 group"
-            >
+            <div key={entry.move} className="flex items-center gap-2 group">
               {/* Rank number */}
               <span className="text-[9px] font-mono text-slate-600 w-3 text-right flex-shrink-0">
                 {i + 1}

@@ -61,12 +61,23 @@ export interface SharedTestConfigOptions {
  * Returns a plain config object (not wrapped in defineConfig)
  */
 export function createSharedTestConfig(options: SharedTestConfigOptions = {}) {
-  const { setupFiles, maxConcurrency = 4, hookTimeout = 120000, testTimeout = 30000, exclude = [] } = options;
+  const {
+    setupFiles,
+    maxConcurrency = 4,
+    hookTimeout = 120000,
+    testTimeout = 30000,
+    exclude = [],
+  } = options;
 
   return {
     test: {
       // Default exclusions
-      exclude: ["**/node_modules/**", "**/dist/**", "**/.{idea,git,cache,output,temp}/**", ...exclude],
+      exclude: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/.{idea,git,cache,output,temp}/**",
+        ...exclude,
+      ],
 
       // Global test setup
       ...(setupFiles && { setupFiles }),
@@ -87,7 +98,13 @@ export function createSharedTestConfig(options: SharedTestConfigOptions = {}) {
       coverage: {
         provider: "v8" as const,
         reporter: ["text", "json", "html"],
-        exclude: ["**/node_modules/**", "**/dist/**", "**/*.test.ts", "**/*.spec.ts", "**/test-*.ts"],
+        exclude: [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/*.test.ts",
+          "**/*.spec.ts",
+          "**/test-*.ts",
+        ],
       },
     },
   };

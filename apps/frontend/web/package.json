@@ -11,6 +11,9 @@
     "lint:check": "biome lint ./src",
     "format": "biome format --write ./src",
     "format:check": "biome format ./src",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --watch --passWithNoTests",
+    "coverage": "vitest run --coverage --passWithNoTests",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6007",
     "storybook:build": "storybook build"
@@ -61,6 +64,7 @@
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vite-plugin-top-level-await": "catalog:",
-    "vite-tsconfig-paths": "catalog:"
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "catalog:"
   }
 }

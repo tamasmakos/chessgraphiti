@@ -1,22 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  parsePieces,
-  getAttackedSquares,
+  buildGraph,
   computeAttackMap,
   computeDefenseMap,
-  buildGraph,
+  getAttackedSquares,
+  parsePieces,
 } from "../graph-algo.ts";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const STARTING_FEN =
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const AFTER_E4 =
-  "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-const AFTER_E4_E5 =
-  "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2";
+const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+const AFTER_E4_E5 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2";
 
 // ---------------------------------------------------------------------------
 // parsePieces
@@ -38,24 +35,16 @@ describe("parsePieces", () => {
 
   it("starting position has 8 pawns per side", () => {
     const pieces = parsePieces(STARTING_FEN);
-    const whitePawns = pieces.filter(
-      (p) => p.color === "w" && p.type === "p",
-    );
-    const blackPawns = pieces.filter(
-      (p) => p.color === "b" && p.type === "p",
-    );
+    const whitePawns = pieces.filter((p) => p.color === "w" && p.type === "p");
+    const blackPawns = pieces.filter((p) => p.color === "b" && p.type === "p");
     expect(whitePawns).toHaveLength(8);
     expect(blackPawns).toHaveLength(8);
   });
 
   it("king values are 1000 (not 4)", () => {
     const pieces = parsePieces(STARTING_FEN);
-    const whiteKing = pieces.find(
-      (p) => p.type === "k" && p.color === "w",
-    );
-    const blackKing = pieces.find(
-      (p) => p.type === "k" && p.color === "b",
-    );
+    const whiteKing = pieces.find((p) => p.type === "k" && p.color === "w");
+    const blackKing = pieces.find((p) => p.type === "k" && p.color === "b");
 
     expect(whiteKing).toBeDefined();
     expect(blackKing).toBeDefined();
@@ -65,18 +54,10 @@ describe("parsePieces", () => {
 
   it("pieces have correct material values", () => {
     const pieces = parsePieces(STARTING_FEN);
-    const queen = pieces.find(
-      (p) => p.type === "q" && p.color === "w",
-    );
-    const rook = pieces.find(
-      (p) => p.type === "r" && p.color === "w" && p.square === "a1",
-    );
-    const knight = pieces.find(
-      (p) => p.type === "n" && p.color === "w" && p.square === "b1",
-    );
-    const pawn = pieces.find(
-      (p) => p.type === "p" && p.color === "w" && p.square === "a2",
-    );
+    const queen = pieces.find((p) => p.type === "q" && p.color === "w");
+    const rook = pieces.find((p) => p.type === "r" && p.color === "w" && p.square === "a1");
+    const knight = pieces.find((p) => p.type === "n" && p.color === "w" && p.square === "b1");
+    const pawn = pieces.find((p) => p.type === "p" && p.color === "w" && p.square === "a2");
 
     expect(queen?.value).toBe(9);
     expect(rook?.value).toBe(5);

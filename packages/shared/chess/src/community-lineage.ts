@@ -92,9 +92,7 @@ export function groupByCommunity(nodes: GraphNode[]): CommunityGroup[] {
     }
     set.add(node.square);
   }
-  return [...byId.entries()]
-    .map(([id, members]) => ({ id, members }))
-    .sort((a, b) => a.id - b.id);
+  return [...byId.entries()].map(([id, members]) => ({ id, members })).sort((a, b) => a.id - b.id);
 }
 
 export function intersection(a: Set<string>, b: Set<string>): string[] {
@@ -231,14 +229,18 @@ export function assignStableColors(
   return { stable, nextColor };
 }
 
-export function buildNarrative(stepIndex: number, events: CommunityEvent[], metrics: StepStoryMetrics): string {
+export function buildNarrative(
+  stepIndex: number,
+  events: CommunityEvent[],
+  metrics: StepStoryMetrics,
+): string {
   const splits = events.filter((e) => e.type === "split");
   const merges = events.filter((e) => e.type === "merge");
   const emerges = events.filter((e) => e.type === "emerge");
   const dissolves = events.filter((e) => e.type === "dissolve");
 
   let story = `Step ${stepIndex}: `;
-  
+
   if (splits.length > 0 || merges.length > 0) {
     story += `${splits.length} splits, ${merges.length} merges. `;
   } else {
@@ -249,7 +251,7 @@ export function buildNarrative(stepIndex: number, events: CommunityEvent[], metr
   if (dissolves.length > 0) story += `${dissolves.length} clusters dissolved. `;
 
   story += `Churn: ${(metrics.churn * 100).toFixed(0)}%.`;
-  
+
   return story;
 }
 
@@ -299,7 +301,9 @@ export function analyzeCommunityLineage(
 
     const previousBySquare = new Map(previous.nodes.map((n) => [n.square, n.communityId]));
     const changedSquares = current.nodes
-      .filter((n) => previousBySquare.has(n.square) && previousBySquare.get(n.square) !== n.communityId)
+      .filter(
+        (n) => previousBySquare.has(n.square) && previousBySquare.get(n.square) !== n.communityId,
+      )
       .map((n) => n.square)
       .sort();
 
@@ -307,7 +311,8 @@ export function analyzeCommunityLineage(
     const continuityDenominator = Math.max(1, previous.nodes.length, current.nodes.length);
     const continuity = continuityNumerator / continuityDenominator;
     const churn = 1 - continuity;
-    const modularityDelta = computeModularity(current.nodes, current.edges) -
+    const modularityDelta =
+      computeModularity(current.nodes, current.edges) -
       computeModularity(previous.nodes, previous.edges);
 
     const metrics: StepStoryMetrics = { continuity, churn, modularityDelta };
@@ -339,7 +344,7 @@ export function computeNextStepLineage(
 ): CommunityLineageAnalysis {
   const currentGroups = groupByCommunity(currentSnapshot.nodes);
   const stepIndex = previousAnalysis ? previousAnalysis.stableColorByStep.length : 0;
-  
+
   if (!previousSnapshot || !previousAnalysis || stepIndex === 0) {
     // Treat as first step
     let nextColor = 0;
@@ -358,7 +363,7 @@ export function computeNextStepLineage(
   const events = buildEvents(prevGroups, currentGroups, links);
 
   const prevStable = previousAnalysis.stableColorByStep[stepIndex - 1] ?? {};
-  
+
   // Find the highest color index used so far to continue the sequence
   let maxColor = -1;
   for (const stepMap of previousAnalysis.stableColorByStep) {
@@ -366,24 +371,31 @@ export function computeNextStepLineage(
       if (color > maxColor) maxColor = color;
     }
   }
-  
+
   const assigned = assignStableColors(prevStable, links, currentGroups, maxColor + 1);
-  
+
   const previousBySquare = new Map(previousSnapshot.nodes.map((n) => [n.square, n.communityId]));
   const changedSquares = currentSnapshot.nodes
-    .filter((n) => previousBySquare.has(n.square) && previousBySquare.get(n.square) !== n.communityId)
+    .filter(
+      (n) => previousBySquare.has(n.square) && previousBySquare.get(n.square) !== n.communityId,
+    )
     .map((n) => n.square)
     .sort();
 
   const continuityNumerator = links.reduce((sum, link) => sum + link.overlapWeight, 0);
-  const continuityDenominator = Math.max(1, previousSnapshot.nodes.length, currentSnapshot.nodes.length);
+  const continuityDenominator = Math.max(
+    1,
+    previousSnapshot.nodes.length,
+    currentSnapshot.nodes.length,
+  );
   const continuity = continuityNumerator / continuityDenominator;
   const churn = 1 - continuity;
-  const modularityDelta = computeModularity(currentSnapshot.nodes, currentSnapshot.edges) -
+  const modularityDelta =
+    computeModularity(currentSnapshot.nodes, currentSnapshot.edges) -
     computeModularity(previousSnapshot.nodes, previousSnapshot.edges);
 
   const metrics: StepStoryMetrics = { continuity, churn, modularityDelta };
-  
+
   const nextTransition: CommunityTransition = {
     stepIndex,
     links,

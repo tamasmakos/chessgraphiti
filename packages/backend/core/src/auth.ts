@@ -1,7 +1,7 @@
 import type { BetterAuthOptions } from "better-auth";
-import type { Logger } from "#log";
-import { getPGPool } from "#db";
 import type { Context, Next } from "hono";
+import { getPGPool } from "#db";
+import type { Logger } from "#log";
 
 export interface AuthConfigParams {
   cookiePrefix: string;
@@ -96,9 +96,10 @@ export function getAuthConfig(params: AuthConfigParams): BetterAuthOptions {
 export function authMiddleware<
   TAuthInstance extends {
     api: {
-      getSession: (options: {
-        headers: Headers;
-      }) => Promise<{ user: { id: string; email: string; username?: string | null }; session: unknown } | null>;
+      getSession: (options: { headers: Headers }) => Promise<{
+        user: { id: string; email: string; username?: string | null };
+        session: unknown;
+      } | null>;
     };
   },
 >(authInstance: TAuthInstance) {
@@ -118,9 +119,9 @@ export function authMiddleware<
   };
 }
 
-export function authHandler<TAuthInstance extends { handler: (request: Request) => Response | Promise<Response> }>(
-  authInstance: TAuthInstance,
-) {
+export function authHandler<
+  TAuthInstance extends { handler: (request: Request) => Response | Promise<Response> },
+>(authInstance: TAuthInstance) {
   return (c: Context) => {
     return authInstance.handler(c.req.raw);
   };

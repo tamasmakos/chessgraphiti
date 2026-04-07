@@ -4,17 +4,14 @@
  * Uses the `stockfish` npm package which bundles Stockfish 16+ with NNUE
  * evaluation as a Web Worker-compatible WASM build.
  */
+
+import { buildGoCommand, parseBestMove, parseEvaluation } from "@yourcompany/chess/engine";
 import type {
-  ChessEngine,
-  SearchOptions,
   BestMoveResult,
+  ChessEngine,
   EvaluationResult,
+  SearchOptions,
 } from "@yourcompany/chess/types";
-import {
-  parseBestMove,
-  parseEvaluation,
-  buildGoCommand,
-} from "@yourcompany/chess/engine";
 
 /**
  * Web-based Stockfish implementation using a Web Worker.
@@ -31,14 +28,12 @@ export class StockfishWeb implements ChessEngine {
     const sources = [
       {
         name: "jsdelivr",
-        script:
-          "https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-nnue-16-single.js",
+        script: "https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-nnue-16-single.js",
         wasm: "https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish-nnue-16-single.wasm",
       },
       {
         name: "unpkg",
-        script:
-          "https://unpkg.com/stockfish@16.0.0/src/stockfish-nnue-16-single.js",
+        script: "https://unpkg.com/stockfish@16.0.0/src/stockfish-nnue-16-single.js",
         wasm: "https://unpkg.com/stockfish@16.0.0/src/stockfish-nnue-16-single.wasm",
       },
     ] as const;
@@ -53,17 +48,13 @@ export class StockfishWeb implements ChessEngine {
           await this.sendAndWait("isready", "readyok");
           return;
         } catch (error) {
-          errors.push(
-            `${source.name} attempt ${attempt}: ${(error as Error).message}`,
-          );
+          errors.push(`${source.name} attempt ${attempt}: ${(error as Error).message}`);
           this.cleanupWorker();
         }
       }
     }
 
-    throw new Error(
-      `Stockfish initialization failed after retries. ${errors.join(" | ")}`,
-    );
+    throw new Error(`Stockfish initialization failed after retries. ${errors.join(" | ")}`);
   }
 
   async isReady(): Promise<boolean> {
@@ -138,17 +129,12 @@ export class StockfishWeb implements ChessEngine {
     // uses an absolute WASM URL (required in blob workers).
     const scriptText = await fetch(stockfishScriptUrl).then((r) => {
       if (!r.ok) {
-        throw new Error(
-          `Failed to fetch Stockfish worker script: ${r.status} ${r.statusText}`,
-        );
+        throw new Error(`Failed to fetch Stockfish worker script: ${r.status} ${r.statusText}`);
       }
       return r.text();
     });
 
-    const patchedScript = scriptText.replaceAll(
-      "stockfish-nnue-16-single.wasm",
-      stockfishWasmUrl,
-    );
+    const patchedScript = scriptText.replaceAll("stockfish-nnue-16-single.wasm", stockfishWasmUrl);
     const blob = new Blob([patchedScript], { type: "text/javascript" });
     this.workerUrl = URL.createObjectURL(blob);
     this.worker = new Worker(this.workerUrl);
@@ -163,10 +149,7 @@ export class StockfishWeb implements ChessEngine {
     }
   }
 
-  private sendAndWait(
-    command: string,
-    expectedResponse: string,
-  ): Promise<string> {
+  private sendAndWait(command: string, expectedResponse: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const worker = this.worker;
       if (!worker) {
@@ -192,8 +175,7 @@ export class StockfishWeb implements ChessEngine {
         lines.push(data);
         const parsedLines = data.split(/\r?\n/).map((line) => line.trim());
         const hasExpected = parsedLines.some(
-          (line) =>
-            line === expectedResponse || line.startsWith(expectedResponse),
+          (line) => line === expectedResponse || line.startsWith(expectedResponse),
         );
         if (hasExpected) {
           cleanup();
@@ -210,11 +192,7 @@ export class StockfishWeb implements ChessEngine {
       };
       const messageErrorHandler = () => {
         cleanup();
-        reject(
-          new Error(
-            `Stockfish worker message deserialization failed after "${command}"`,
-          ),
-        );
+        reject(new Error(`Stockfish worker message deserialization failed after "${command}"`));
       };
 
       worker.addEventListener("message", handler);
@@ -225,11 +203,7 @@ export class StockfishWeb implements ChessEngine {
       // Timeout after 30 seconds to prevent hanging
       timeoutId = setTimeout(() => {
         cleanup();
-        reject(
-          new Error(
-            `Timeout waiting for "${expectedResponse}" after "${command}"`,
-          ),
-        );
+        reject(new Error(`Timeout waiting for "${expectedResponse}" after "${command}"`));
       }, 30_000);
     });
   }

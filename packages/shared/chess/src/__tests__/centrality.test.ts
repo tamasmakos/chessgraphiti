@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   computeBetweennessCentrality,
-  computeDegreeCentrality,
-  computeWeightedDegreeCentrality,
   computeClosenessCentrality,
+  computeDegreeCentrality,
   computePageRankCentrality,
+  computeWeightedDegreeCentrality,
 } from "../centrality.ts";
-import type { GraphNode, GraphEdge } from "../types.ts";
+import type { GraphEdge, GraphNode } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,10 +62,7 @@ describe("computeBetweennessCentrality", () => {
 
   it("linear chain A->B->C: B should have highest betweenness", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5)];
     const scores = computeBetweennessCentrality(nodes, edges);
 
     const a1Score = scores.get("a1") ?? 0;
@@ -78,17 +75,8 @@ describe("computeBetweennessCentrality", () => {
   });
 
   it("bridge node in a 4-node linear chain has highest betweenness", () => {
-    const nodes = [
-      makeNode("a1"),
-      makeNode("b2"),
-      makeNode("c3"),
-      makeNode("d4"),
-    ];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-      makeEdge("c3", "d4", 5),
-    ];
+    const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3"), makeNode("d4")];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5), makeEdge("c3", "d4", 5)];
     const scores = computeBetweennessCentrality(nodes, edges);
 
     const b2Score = scores.get("b2") ?? 0;
@@ -100,17 +88,8 @@ describe("computeBetweennessCentrality", () => {
   });
 
   it("all values in 0-1 range", () => {
-    const nodes = [
-      makeNode("a1"),
-      makeNode("d4"),
-      makeNode("e5"),
-      makeNode("h8"),
-    ];
-    const edges = [
-      makeEdge("a1", "d4", 5),
-      makeEdge("d4", "e5", 3),
-      makeEdge("e5", "h8", 2),
-    ];
+    const nodes = [makeNode("a1"), makeNode("d4"), makeNode("e5"), makeNode("h8")];
+    const edges = [makeEdge("a1", "d4", 5), makeEdge("d4", "e5", 3), makeEdge("e5", "h8", 2)];
     const scores = computeBetweennessCentrality(nodes, edges);
 
     for (const value of scores.values()) {
@@ -121,10 +100,7 @@ describe("computeBetweennessCentrality", () => {
 
   it("highest betweenness is normalized to 1", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5)];
     const scores = computeBetweennessCentrality(nodes, edges);
 
     const maxScore = Math.max(...scores.values());
@@ -150,7 +126,7 @@ describe("computeDegreeCentrality", () => {
 
   it("star graph: center should have highest degree", () => {
     const nodes = [
-      makeNode("d4"),  // center
+      makeNode("d4"), // center
       makeNode("a1"),
       makeNode("h1"),
       makeNode("a8"),
@@ -172,11 +148,7 @@ describe("computeDegreeCentrality", () => {
 
   it("all values in 0-1 range", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-      makeEdge("c3", "a1", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5), makeEdge("c3", "a1", 5)];
     const scores = computeDegreeCentrality(nodes, edges);
 
     for (const value of scores.values()) {
@@ -187,10 +159,7 @@ describe("computeDegreeCentrality", () => {
 
   it("counts both in-degree and out-degree", () => {
     const nodes = [makeNode("a1"), makeNode("b2")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "a1", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "a1", 5)];
     const scores = computeDegreeCentrality(nodes, edges);
 
     // Each node has 1 in + 1 out = 2 total / (n-1) = 2/1 = 2, clamped to 1
@@ -201,7 +170,7 @@ describe("computeDegreeCentrality", () => {
   it("node with most edges has highest degree centrality in mixed graph", () => {
     const nodes = [
       makeNode("a1"),
-      makeNode("d4"),  // hub
+      makeNode("d4"), // hub
       makeNode("e5"),
       makeNode("h8"),
     ];
@@ -239,13 +208,13 @@ describe("computeWeightedDegreeCentrality", () => {
   it("weighted degree with different edge weights: verify sum proportional to weights", () => {
     const nodes = [
       makeNode("a1"),
-      makeNode("d4"),  // heavy edges
+      makeNode("d4"), // heavy edges
       makeNode("h8"),
     ];
     const edges = [
-      makeEdge("d4", "a1", 20),  // heavy edge from d4
-      makeEdge("d4", "h8", 15),  // heavy edge from d4
-      makeEdge("a1", "h8", 1),   // light edge
+      makeEdge("d4", "a1", 20), // heavy edge from d4
+      makeEdge("d4", "h8", 15), // heavy edge from d4
+      makeEdge("a1", "h8", 1), // light edge
     ];
     const scores = computeWeightedDegreeCentrality(nodes, edges);
 
@@ -260,10 +229,7 @@ describe("computeWeightedDegreeCentrality", () => {
 
   it("all values in 0-1 range after normalization", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 10),
-      makeEdge("b2", "c3", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 10), makeEdge("b2", "c3", 5)];
     const scores = computeWeightedDegreeCentrality(nodes, edges);
 
     for (const value of scores.values()) {
@@ -282,20 +248,13 @@ describe("computeWeightedDegreeCentrality", () => {
   });
 
   it("sums both incoming and outgoing edge weights", () => {
-    const nodes = [
-      makeNode("a1"),
-      makeNode("b2"),
-      makeNode("c3"),
-    ];
+    const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
     // a1 → b2 (weight 10): a1 gets 10 out, b2 gets 10 in
     // c3 → b2 (weight 5): c3 gets 5 out, b2 gets 5 in
     // b2 total = 10 + 5 = 15
     // a1 total = 10
     // c3 total = 5
-    const edges = [
-      makeEdge("a1", "b2", 10),
-      makeEdge("c3", "b2", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 10), makeEdge("c3", "b2", 5)];
     const scores = computeWeightedDegreeCentrality(nodes, edges);
 
     const a1Score = scores.get("a1") ?? 0;
@@ -328,7 +287,7 @@ describe("computeClosenessCentrality", () => {
 
   it("star graph: center should have highest closeness", () => {
     const nodes = [
-      makeNode("d4"),  // center
+      makeNode("d4"), // center
       makeNode("a1"),
       makeNode("h1"),
       makeNode("a8"),
@@ -351,11 +310,7 @@ describe("computeClosenessCentrality", () => {
 
   it("all values in 0-1 range", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-      makeEdge("c3", "a1", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5), makeEdge("c3", "a1", 5)];
     const scores = computeClosenessCentrality(nodes, edges);
 
     for (const value of scores.values()) {
@@ -368,7 +323,7 @@ describe("computeClosenessCentrality", () => {
     const nodes = [
       makeNode("a1"),
       makeNode("b2"),
-      makeNode("h8"),  // isolated
+      makeNode("h8"), // isolated
     ];
     const edges = [
       makeEdge("a1", "b2", 5),
@@ -382,10 +337,7 @@ describe("computeClosenessCentrality", () => {
 
   it("highest closeness is normalized to 1", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-    ];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5)];
     const scores = computeClosenessCentrality(nodes, edges);
 
     const maxScore = Math.max(...scores.values());
@@ -395,17 +347,8 @@ describe("computeClosenessCentrality", () => {
   });
 
   it("linear chain: first node can reach farthest, still within [0,1]", () => {
-    const nodes = [
-      makeNode("a1"),
-      makeNode("b2"),
-      makeNode("c3"),
-      makeNode("d4"),
-    ];
-    const edges = [
-      makeEdge("a1", "b2", 5),
-      makeEdge("b2", "c3", 5),
-      makeEdge("c3", "d4", 5),
-    ];
+    const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3"), makeNode("d4")];
+    const edges = [makeEdge("a1", "b2", 5), makeEdge("b2", "c3", 5), makeEdge("c3", "d4", 5)];
     const scores = computeClosenessCentrality(nodes, edges);
 
     // a1 can reach b2(1), c3(2), d4(3) → closeness = 3/6 = 0.5
@@ -434,13 +377,7 @@ describe("computePageRankCentrality", () => {
   });
 
   it("star-like inbound structure gives center highest rank", () => {
-    const nodes = [
-      makeNode("d4"),
-      makeNode("a1"),
-      makeNode("h1"),
-      makeNode("a8"),
-      makeNode("h8"),
-    ];
+    const nodes = [makeNode("d4"), makeNode("a1"), makeNode("h1"), makeNode("a8"), makeNode("h8")];
     const edges = [
       makeEdge("a1", "d4", 1),
       makeEdge("h1", "d4", 1),
@@ -455,11 +392,7 @@ describe("computePageRankCentrality", () => {
 
   it("all values are within 0-1", () => {
     const nodes = [makeNode("a1"), makeNode("b2"), makeNode("c3")];
-    const edges = [
-      makeEdge("a1", "b2", 3),
-      makeEdge("b2", "c3", 2),
-      makeEdge("c3", "a1", 1),
-    ];
+    const edges = [makeEdge("a1", "b2", 3), makeEdge("b2", "c3", 2), makeEdge("c3", "a1", 1)];
     const scores = computePageRankCentrality(nodes, edges);
     for (const value of scores.values()) {
       expect(value).toBeGreaterThanOrEqual(0);

@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
-import type { GraphNode } from "@yourcompany/chess/types";
 import { COMMUNITY_COLORS } from "@yourcompany/chess/constants";
+import type { GraphNode } from "@yourcompany/chess/types";
+import React, { useMemo } from "react";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -89,10 +89,8 @@ export const CommunityTiles = React.memo(function CommunityTiles({
       const file = node.square.charCodeAt(0) - 97;
       const rank = Number.parseInt(node.square[1] ?? "1", 10) - 1;
 
-      const left =
-        orientation === "white" ? file * squareSize : (7 - file) * squareSize;
-      const top =
-        orientation === "white" ? (7 - rank) * squareSize : rank * squareSize;
+      const left = orientation === "white" ? file * squareSize : (7 - file) * squareSize;
+      const top = orientation === "white" ? (7 - rank) * squareSize : rank * squareSize;
 
       const value = getCentralityValue(node);
       const ratio = centralityMetric === "none" ? 0.5 : value / max;
@@ -138,9 +136,7 @@ export const CommunityTiles = React.memo(function CommunityTiles({
             width: tile.width,
             height: tile.height,
             backgroundColor: tile.color,
-            boxShadow: tile.isChanged
-              ? "inset 0 0 0 2px rgba(167,139,250,0.6)"
-              : undefined,
+            boxShadow: tile.isChanged ? "inset 0 0 0 2px rgba(167,139,250,0.6)" : undefined,
           }}
         />
       ))}

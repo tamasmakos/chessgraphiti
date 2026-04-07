@@ -17,20 +17,14 @@
  * Force Dynamics replaced with Activity Heatmap:
  *  - Continuous gradient heatmap of square activity for selected pieces
  */
-import React, { useMemo, useRef, useEffect } from "react";
-import * as d3 from "d3";
-import type { GraphSnapshot, GraphNode } from "@yourcompany/chess/types";
-import { COMMUNITY_COLORS } from "@yourcompany/chess/constants";
-import { PieceTypeSelector } from "./PieceTypeSelector";
-import { type PieceSelection, pieceFullLabel } from "./PieceTypeSelector";
 
-type CentralityMetric =
-  | "weighted"
-  | "degree"
-  | "betweenness"
-  | "closeness"
-  | "pagerank"
-  | "none";
+import { COMMUNITY_COLORS } from "@yourcompany/chess/constants";
+import type { GraphNode, GraphSnapshot } from "@yourcompany/chess/types";
+import * as d3 from "d3";
+import React, { useEffect, useMemo, useRef } from "react";
+import { type PieceSelection, PieceTypeSelector, pieceFullLabel } from "./PieceTypeSelector";
+
+type CentralityMetric = "weighted" | "degree" | "betweenness" | "closeness" | "pagerank" | "none";
 
 interface CentralityD3DashboardProps {
   analysisGraphSnapshots: Array<GraphSnapshot | null>;
@@ -87,15 +81,31 @@ const METRIC_BUTTON: Record<Exclude<CentralityMetric, "none">, string> = {
 
 type ActiveMetric = Exclude<CentralityMetric, "none">;
 
-const ACTIVE_METRIC_OPTIONS: ActiveMetric[] = ["weighted", "degree", "betweenness", "closeness", "pagerank"];
+const ACTIVE_METRIC_OPTIONS: ActiveMetric[] = [
+  "weighted",
+  "degree",
+  "betweenness",
+  "closeness",
+  "pagerank",
+];
 
 const WHITE_PIECES_COLOR = "#f1f5f9";
 const BLACK_PIECES_COLOR = "#818cf8";
 
 /** Per-piece-type colors for timeline lines. White pieces are bright; black pieces are muted/cool. */
 const PIECE_LINE_COLORS: Record<string, string> = {
-  wk: "#f472b6", wq: "#facc15", wr: "#22d3ee", wb: "#34d399", wn: "#fb923c", wp: "#94a3b8",
-  bk: "#e879f9", bq: "#c084fc", br: "#818cf8", bb: "#6ee7b7", bn: "#fdba74", bp: "#475569",
+  wk: "#f472b6",
+  wq: "#facc15",
+  wr: "#22d3ee",
+  wb: "#34d399",
+  wn: "#fb923c",
+  wp: "#94a3b8",
+  bk: "#e879f9",
+  bq: "#c084fc",
+  br: "#818cf8",
+  bb: "#6ee7b7",
+  bn: "#fdba74",
+  bp: "#475569",
 };
 
 function MetricSelector({
@@ -128,20 +138,24 @@ function MetricSelector({
 
 function getMetricValue(node: GraphNode, metric: CentralityMetric): number {
   switch (metric) {
-    case "weighted": return node.centralityWeighted;
-    case "degree": return node.centralityDegree;
-    case "betweenness": return node.centralityBetweenness;
-    case "closeness": return node.centralityCloseness;
-    case "pagerank": return node.centralityPageRank;
-    default: return 0;
+    case "weighted":
+      return node.centralityWeighted;
+    case "degree":
+      return node.centralityDegree;
+    case "betweenness":
+      return node.centralityBetweenness;
+    case "closeness":
+      return node.centralityCloseness;
+    case "pagerank":
+      return node.centralityPageRank;
+    default:
+      return 0;
   }
 }
 
 function filterNodes(nodes: GraphNode[], selectedPieces: PieceSelection[]): GraphNode[] {
   if (selectedPieces.length === 0) return nodes;
-  return nodes.filter((n) =>
-    selectedPieces.some((s) => s.type === n.type && s.color === n.color),
-  );
+  return nodes.filter((n) => selectedPieces.some((s) => s.type === n.type && s.color === n.color));
 }
 
 function selectionColor(selectedPieces: PieceSelection[], nodes: GraphNode[]): string {
@@ -196,7 +210,11 @@ export function CentralityD3Dashboard({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <PieceTypeSelector selected={selectedPieces} onChange={setSelectedPieces} snapshot={currentSnapshot} />
+          <PieceTypeSelector
+            selected={selectedPieces}
+            onChange={setSelectedPieces}
+            snapshot={currentSnapshot}
+          />
           <MetricSelector activeMetric={activeMetric} onChange={setActiveMetric} />
         </div>
       </div>
@@ -247,7 +265,10 @@ export function CentralityD3Dashboard({
       </div>
 
       {/* Adjacency Matrix — full width, primary panel */}
-      <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col" style={{ height: 260 }}>
+      <div
+        className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden flex flex-col"
+        style={{ height: 260 }}
+      >
         <div className="flex-shrink-0 px-2.5 pt-1.5 pb-0">
           <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
             Adjacency Matrix
@@ -303,7 +324,8 @@ function CentralityTimelineD3({
 
   const data = useMemo(() => {
     const backgroundSeries: Record<string, number[]> = {};
-    for (const m of ALL_METRICS) backgroundSeries[m] = new Array(snapshots.length).fill(0) as number[];
+    for (const m of ALL_METRICS)
+      backgroundSeries[m] = new Array(snapshots.length).fill(0) as number[];
 
     // One line per color+type (e.g. "wq", "br"). Multiple same-type pieces are averaged.
     const pieceLineVals = new Map<string, number[]>(); // key -> sum per step
@@ -332,7 +354,14 @@ function CentralityTimelineD3({
     }
 
     const PIECE_TYPE_ORDER: Record<string, number> = { k: 0, q: 1, r: 2, b: 3, n: 4, p: 5 };
-    const PIECE_TYPE_NAMES: Record<string, string> = { k: "King", q: "Queen", r: "Rook", b: "Bishop", n: "Knight", p: "Pawn" };
+    const PIECE_TYPE_NAMES: Record<string, string> = {
+      k: "King",
+      q: "Queen",
+      r: "Rook",
+      b: "Bishop",
+      n: "Knight",
+      p: "Pawn",
+    };
     const pieceLines = [...pieceLineVals.entries()]
       .map(([key, sums]) => {
         const cnts = pieceLineCnts.get(key) ?? [];
@@ -372,43 +401,78 @@ function CentralityTimelineD3({
     const iw = width - m.left - m.right;
     const ih = height - m.top - m.bottom;
 
-    const x = d3.scaleLinear().domain([0, Math.max(1, snapshots.length - 1)]).range([0, iw]);
+    const x = d3
+      .scaleLinear()
+      .domain([0, Math.max(1, snapshots.length - 1)])
+      .range([0, iw]);
     const y = d3.scaleLinear().domain([0, data.maxVal]).range([ih, 0]).nice();
     const g = svg.append("g").attr("transform", `translate(${m.left},${m.top})`);
 
-    g.append("g").selectAll("line.grid")
-      .data(y.ticks(4)).join("line")
-      .attr("x1", 0).attr("x2", iw)
-      .attr("y1", (d) => y(d)).attr("y2", (d) => y(d))
-      .attr("stroke", "rgba(51,65,85,0.22)").attr("stroke-width", 1);
+    g.append("g")
+      .selectAll("line.grid")
+      .data(y.ticks(4))
+      .join("line")
+      .attr("x1", 0)
+      .attr("x2", iw)
+      .attr("y1", (d) => y(d))
+      .attr("y2", (d) => y(d))
+      .attr("stroke", "rgba(51,65,85,0.22)")
+      .attr("stroke-width", 1);
 
     g.append("g")
       .call(d3.axisLeft(y).ticks(4).tickFormat(d3.format(".2f")).tickSize(0).tickPadding(5))
       .call((ax) => ax.select(".domain").remove())
-      .call((ax) => ax.selectAll("text").attr("font-size", "8px").attr("fill", "rgba(100,116,139,0.7)").attr("font-family", "monospace"));
+      .call((ax) =>
+        ax
+          .selectAll("text")
+          .attr("font-size", "8px")
+          .attr("fill", "rgba(100,116,139,0.7)")
+          .attr("font-family", "monospace"),
+      );
 
-    g.append("g").attr("transform", `translate(0,${ih})`)
+    g.append("g")
+      .attr("transform", `translate(0,${ih})`)
       .call(d3.axisBottom(x).ticks(Math.min(8, snapshots.length)).tickSize(2).tickPadding(3))
       .call((ax) => ax.select(".domain").remove())
-      .call((ax) => ax.selectAll("text").attr("font-size", "8px").attr("fill", "rgba(100,116,139,0.5)").attr("font-family", "monospace"));
+      .call((ax) =>
+        ax
+          .selectAll("text")
+          .attr("font-size", "8px")
+          .attr("fill", "rgba(100,116,139,0.5)")
+          .attr("font-family", "monospace"),
+      );
 
-    const line = d3.line<number>().x((_, i) => x(i)).y((d) => y(d)).curve(d3.curveMonotoneX);
+    const line = d3
+      .line<number>()
+      .x((_, i) => x(i))
+      .y((d) => y(d))
+      .curve(d3.curveMonotoneX);
 
     // Background metric lines (faded ghosts)
     ALL_METRICS.forEach((met, mi) => {
       const color = METRIC_COLORS[met];
       const values = data.backgroundSeries[met] as number[];
       const isActive = activeMetric === met;
-      g.append("path").datum(values)
-        .attr("fill", "none").attr("stroke", color)
+      g.append("path")
+        .datum(values)
+        .attr("fill", "none")
+        .attr("stroke", color)
         .attr("stroke-width", isActive ? 1 : 0.8)
         .attr("d", line as any)
         .attr("opacity", isActive ? 0.28 : 0.12);
-      g.append("circle").attr("cx", 4).attr("cy", 6 + mi * 10).attr("r", 2)
-        .attr("fill", color).attr("opacity", isActive ? 0.5 : 0.22);
+      g.append("circle")
+        .attr("cx", 4)
+        .attr("cy", 6 + mi * 10)
+        .attr("r", 2)
+        .attr("fill", color)
+        .attr("opacity", isActive ? 0.5 : 0.22);
       g.append("text")
-        .attr("x", 8).attr("y", 6 + mi * 10).attr("dy", "0.35em")
-        .attr("font-size", "6px").attr("fill", color).attr("font-family", "monospace")
+        .attr("x", 8)
+        .attr("y", 6 + mi * 10)
+        .attr("dy", "0.35em")
+        .attr("font-size", "6px")
+        .attr("fill", color)
+        .attr("font-family", "monospace")
         .attr("opacity", isActive ? 0.55 : 0.22)
         .text(METRIC_BUTTON[met] ?? met);
     });
@@ -416,7 +480,8 @@ function CentralityTimelineD3({
     // Individual piece-type lines (one per color+type, e.g. wQ, bR)
     for (const pl of data.pieceLines) {
       if (!pl.values.some((v) => v > 0)) continue;
-      g.append("path").datum(pl.values)
+      g.append("path")
+        .datum(pl.values)
         .attr("fill", "none")
         .attr("stroke", pl.color)
         .attr("stroke-width", 1.5)
@@ -427,7 +492,10 @@ function CentralityTimelineD3({
       // Label at the last non-zero data point
       let lastIdx = -1;
       for (let li = pl.values.length - 1; li >= 0; li--) {
-        if ((pl.values[li] ?? 0) > 0) { lastIdx = li; break; }
+        if ((pl.values[li] ?? 0) > 0) {
+          lastIdx = li;
+          break;
+        }
       }
       const lastVal = lastIdx >= 0 ? (pl.values[lastIdx] ?? 0) : 0;
       if (lastVal > 0) {
@@ -444,15 +512,24 @@ function CentralityTimelineD3({
     }
 
     g.append("line")
-      .attr("x1", x(currentIndex)).attr("x2", x(currentIndex))
-      .attr("y1", 0).attr("y2", ih)
-      .attr("stroke", "#6366f1").attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", "3,2").attr("opacity", 0.85);
+      .attr("x1", x(currentIndex))
+      .attr("x2", x(currentIndex))
+      .attr("y1", 0)
+      .attr("y2", ih)
+      .attr("stroke", "#6366f1")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", "3,2")
+      .attr("opacity", 0.85);
 
     if (onIndexChange) {
-      svg.append("rect")
-        .attr("x", m.left).attr("y", m.top).attr("width", iw).attr("height", ih)
-        .attr("fill", "transparent").style("cursor", "crosshair")
+      svg
+        .append("rect")
+        .attr("x", m.left)
+        .attr("y", m.top)
+        .attr("width", iw)
+        .attr("height", ih)
+        .attr("fill", "transparent")
+        .style("cursor", "crosshair")
         .on("click", (event) => {
           const [mx] = d3.pointer(event);
           const step = Math.round(x.invert(mx - m.left));
@@ -467,7 +544,8 @@ function CentralityTimelineD3({
           let content = `<div style="font-size:9px;font-weight:900;color:#94a3b8;margin-bottom:2px">${METRIC_INTUITIVE[activeMetric]} · STEP ${step}</div>`;
           for (const pl of data.pieceLines) {
             const val = pl.values[step] ?? 0;
-            if (val > 0) content += `<span style="color:${pl.color}">${pl.fullName}: ${val.toFixed(3)}</span><br/>`;
+            if (val > 0)
+              content += `<span style="color:${pl.color}">${pl.fullName}: ${val.toFixed(3)}</span><br/>`;
           }
 
           const px = x(step) + m.left;
@@ -540,13 +618,13 @@ function CentralityRadarD3({
       pagerank: filtered.reduce((s, n) => s + n.centralityPageRank, 0) / filtered.length,
     };
 
-    const color = selectedPieces.length === 1
-      ? (selectionColor(selectedPieces, snapshot.nodes))
-      : "#6366f1";
+    const color =
+      selectedPieces.length === 1 ? selectionColor(selectedPieces, snapshot.nodes) : "#6366f1";
 
-    const label = selectedPieces.length === 1
-      ? pieceFullLabel(selectedPieces[0]!.color, selectedPieces[0]!.type)
-      : `${selectedPieces.length} types`;
+    const label =
+      selectedPieces.length === 1
+        ? pieceFullLabel(selectedPieces[0]!.color, selectedPieces[0]!.type)
+        : `${selectedPieces.length} types`;
 
     return [{ label, color, vals: avg }];
   }, [snapshot, metric, selectedPieces]);
@@ -577,25 +655,37 @@ function CentralityRadarD3({
     };
 
     [0.25, 0.5, 0.75, 1].forEach((d) => {
-      g.append("circle").attr("r", rScale(d))
-        .attr("fill", "none").attr("stroke", "rgba(51,65,85,0.35)").attr("stroke-dasharray", "2,3");
+      g.append("circle")
+        .attr("r", rScale(d))
+        .attr("fill", "none")
+        .attr("stroke", "rgba(51,65,85,0.35)")
+        .attr("stroke-dasharray", "2,3");
     });
 
     axes.forEach((axis, i) => {
       const angle = angleSlice * i - Math.PI / 2;
       const lx = rScale(1.22) * Math.cos(angle);
       const ly = rScale(1.22) * Math.sin(angle);
-      g.append("line").attr("x1", 0).attr("y1", 0)
-        .attr("x2", rScale(1) * Math.cos(angle)).attr("y2", rScale(1) * Math.sin(angle))
+      g.append("line")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", rScale(1) * Math.cos(angle))
+        .attr("y2", rScale(1) * Math.sin(angle))
         .attr("stroke", "rgba(51,65,85,0.4)");
       g.append("text")
-        .attr("x", lx).attr("y", ly).attr("text-anchor", "middle").attr("dominant-baseline", "middle")
-        .attr("font-size", "7px").attr("fill", "rgba(148,163,184,0.7)")
-        .attr("font-family", "monospace").attr("font-weight", "bold")
+        .attr("x", lx)
+        .attr("y", ly)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .attr("font-size", "7px")
+        .attr("fill", "rgba(148,163,184,0.7)")
+        .attr("font-family", "monospace")
+        .attr("font-weight", "bold")
         .text(axisLabels[i] ?? axis);
     });
 
-    const radarLine = d3.lineRadial<{ axis: string; value: number }>()
+    const radarLine = d3
+      .lineRadial<{ axis: string; value: number }>()
       .radius((d) => rScale(d.value))
       .angle((_, i) => i * angleSlice)
       .curve(d3.curveLinearClosed);
@@ -605,16 +695,23 @@ function CentralityRadarD3({
         axis,
         value: Math.min(1, row.vals[axis] / maxes[axis]),
       }));
-      g.append("path").datum(values).attr("d", radarLine)
-        .attr("fill", row.color).attr("fill-opacity", 0.15)
-        .attr("stroke", row.color).attr("stroke-width", 1.8)
+      g.append("path")
+        .datum(values)
+        .attr("d", radarLine)
+        .attr("fill", row.color)
+        .attr("fill-opacity", 0.15)
+        .attr("stroke", row.color)
+        .attr("stroke-width", 1.8)
         .style("filter", `drop-shadow(0 0 4px ${row.color}55)`);
       values.forEach((v, i) => {
         const angle = angleSlice * i - Math.PI / 2;
-        g.append("circle").attr("r", 2.5)
+        g.append("circle")
+          .attr("r", 2.5)
           .attr("cx", rScale(v.value) * Math.cos(angle))
           .attr("cy", rScale(v.value) * Math.sin(angle))
-          .attr("fill", row.color).attr("stroke", "rgba(15,23,42,0.8)").attr("stroke-width", 1);
+          .attr("fill", row.color)
+          .attr("stroke", "rgba(15,23,42,0.8)")
+          .attr("stroke-width", 1);
       });
     });
 
@@ -622,8 +719,14 @@ function CentralityRadarD3({
       const lx = -cx + 8;
       const ly = -cy + 10 + i * 12;
       g.append("circle").attr("cx", lx).attr("cy", ly).attr("r", 3).attr("fill", row.color);
-      g.append("text").attr("x", lx + 6).attr("y", ly).attr("dy", "0.35em")
-        .attr("font-size", "7px").attr("fill", row.color).attr("font-family", "monospace").text(row.label);
+      g.append("text")
+        .attr("x", lx + 6)
+        .attr("y", ly)
+        .attr("dy", "0.35em")
+        .attr("font-size", "7px")
+        .attr("fill", row.color)
+        .attr("font-family", "monospace")
+        .text(row.label);
     });
   }, [radarData, snapshot]);
 
@@ -639,8 +742,18 @@ type EdgeMode = "attack" | "defense" | "both";
 
 // Piece-type letter lookup (uppercase = white, lowercase = black — FEN convention)
 const PIECE_SYMBOL: Record<string, string> = {
-  wp: "P", wn: "N", wb: "B", wr: "R", wq: "Q", wk: "K",
-  bp: "p", bn: "n", bb: "b", br: "r", bq: "q", bk: "k",
+  wp: "P",
+  wn: "N",
+  wb: "B",
+  wr: "R",
+  wq: "Q",
+  wk: "K",
+  bp: "p",
+  bn: "n",
+  bb: "b",
+  br: "r",
+  bq: "q",
+  bk: "k",
 };
 
 // Derive a stable matrix key for a node.
@@ -669,7 +782,12 @@ function matrixKeySymbol(key: string): string {
 function matrixKeyLabel(key: string): string {
   const colorNames: Record<string, string> = { w: "White", b: "Black" };
   const typeNames: Record<string, string> = {
-    p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King",
+    p: "Pawn",
+    n: "Knight",
+    b: "Bishop",
+    r: "Rook",
+    q: "Queen",
+    k: "King",
   };
   if (key.length === 2) {
     return `${colorNames[key[0] ?? ""] ?? ""} ${typeNames[key[1] ?? ""] ?? key}`;
@@ -828,7 +946,10 @@ function CentralityHeatmapD3({
     const getVal = (cellKey: string) => {
       if (edgeMode === "attack") return matrices.attack.normalized[cellKey] ?? 0;
       if (edgeMode === "defense") return matrices.defense.normalized[cellKey] ?? 0;
-      return ((matrices.attack.normalized[cellKey] ?? 0) + (matrices.defense.normalized[cellKey] ?? 0)) / 2;
+      return (
+        ((matrices.attack.normalized[cellKey] ?? 0) + (matrices.defense.normalized[cellKey] ?? 0)) /
+        2
+      );
     };
 
     let rgb = "99,102,241";
@@ -844,13 +965,19 @@ function CentralityHeatmapD3({
     const sepX = firstBlackIdx > 0 ? firstBlackIdx * cw : N * 0.5 * cw;
     const sepY = firstBlackIdx > 0 ? firstBlackIdx * ch : N * 0.5 * ch;
     g.append("line")
-      .attr("x1", sepX - 0.5).attr("x2", sepX - 0.5)
-      .attr("y1", -labelH).attr("y2", N * ch)
-      .attr("stroke", sepStroke).attr("stroke-width", 1);
+      .attr("x1", sepX - 0.5)
+      .attr("x2", sepX - 0.5)
+      .attr("y1", -labelH)
+      .attr("y2", N * ch)
+      .attr("stroke", sepStroke)
+      .attr("stroke-width", 1);
     g.append("line")
-      .attr("y1", sepY - 0.5).attr("y2", sepY - 0.5)
-      .attr("x1", -labelW).attr("x2", N * cw)
-      .attr("stroke", sepStroke).attr("stroke-width", 1);
+      .attr("y1", sepY - 0.5)
+      .attr("y2", sepY - 0.5)
+      .attr("x1", -labelW)
+      .attr("x2", N * cw)
+      .attr("stroke", sepStroke)
+      .attr("stroke-width", 1);
 
     matrixKeys.forEach((rowKey, ri) => {
       matrixKeys.forEach((colKey, ci) => {
@@ -876,13 +1003,23 @@ function CentralityHeatmapD3({
         else if (active) fill = `rgba(${cellRgb},${Math.max(0.03, dominantV * 0.55)})`;
 
         g.append("rect")
-          .attr("x", ci * cw + 0.5).attr("y", ri * ch + 0.5)
-          .attr("width", cw - 1).attr("height", ch - 1)
+          .attr("x", ci * cw + 0.5)
+          .attr("y", ri * ch + 0.5)
+          .attr("width", cw - 1)
+          .attr("height", ch - 1)
           .attr("rx", 1)
           .attr("fill", fill)
-          .attr("stroke", bothActive && dominantV > 0.3 ? `rgba(${cellRgb},0.5)` : "rgba(15,23,42,0.0)")
+          .attr(
+            "stroke",
+            bothActive && dominantV > 0.3 ? `rgba(${cellRgb},0.5)` : "rgba(15,23,42,0.0)",
+          )
           .attr("stroke-width", 0.5)
-          .style("filter", bothActive && dominantV > 0.5 ? `drop-shadow(0 0 2px rgba(${cellRgb},${dominantV * 0.6}))` : "none");
+          .style(
+            "filter",
+            bothActive && dominantV > 0.5
+              ? `drop-shadow(0 0 2px rgba(${cellRgb},${dominantV * 0.6}))`
+              : "none",
+          );
       });
     });
 
@@ -892,11 +1029,14 @@ function CentralityHeatmapD3({
       const pieceHeaderColor = isWhite ? "#fbbf24" : "#38bdf8";
       const colFill = active ? pieceHeaderColor : "rgba(100,116,139,0.45)";
       g.append("text")
-        .attr("x", ci * cw + cw / 2).attr("y", -4)
-        .attr("text-anchor", "middle").attr("dominant-baseline", "auto")
+        .attr("x", ci * cw + cw / 2)
+        .attr("y", -4)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "auto")
         .attr("font-size", `${Math.min(cw * 0.72, 11)}px`)
         .attr("fill", colFill)
-        .attr("font-family", "monospace").attr("font-weight", "bold")
+        .attr("font-family", "monospace")
+        .attr("font-weight", "bold")
         .text(matrixKeySymbol(key));
     });
 
@@ -906,11 +1046,14 @@ function CentralityHeatmapD3({
       const pieceRowColor = isWhite ? "#fbbf24" : "#38bdf8";
       const rowFill = active ? pieceRowColor : "rgba(100,116,139,0.45)";
       g.append("text")
-        .attr("x", -4).attr("y", ri * ch + ch / 2)
-        .attr("text-anchor", "end").attr("dominant-baseline", "middle")
+        .attr("x", -4)
+        .attr("y", ri * ch + ch / 2)
+        .attr("text-anchor", "end")
+        .attr("dominant-baseline", "middle")
         .attr("font-size", `${Math.min(ch * 0.72, 11)}px`)
         .attr("fill", rowFill)
-        .attr("font-family", "monospace").attr("font-weight", "bold")
+        .attr("font-family", "monospace")
+        .attr("font-weight", "bold")
         .text(matrixKeySymbol(key));
     });
 
@@ -918,20 +1061,37 @@ function CentralityHeatmapD3({
     const whiteCount = firstBlackIdx > 0 ? firstBlackIdx : Math.floor(N / 2);
     const blackCount = N - whiteCount;
     g.append("text")
-      .attr("x", (whiteCount / 2) * cw).attr("y", -labelH)
-      .attr("text-anchor", "middle").attr("dominant-baseline", "hanging")
-      .attr("font-size", "7px").attr("fill", "rgba(251,191,36,0.45)")
-      .attr("font-family", "monospace").attr("font-weight", "black")
-      .attr("letter-spacing", "0.08em").text("WHITE →");
+      .attr("x", (whiteCount / 2) * cw)
+      .attr("y", -labelH)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "hanging")
+      .attr("font-size", "7px")
+      .attr("fill", "rgba(251,191,36,0.45)")
+      .attr("font-family", "monospace")
+      .attr("font-weight", "black")
+      .attr("letter-spacing", "0.08em")
+      .text("WHITE →");
     g.append("text")
-      .attr("x", (whiteCount + blackCount / 2) * cw).attr("y", -labelH)
-      .attr("text-anchor", "middle").attr("dominant-baseline", "hanging")
-      .attr("font-size", "7px").attr("fill", "rgba(56,189,248,0.45)")
-      .attr("font-family", "monospace").attr("font-weight", "black")
-      .attr("letter-spacing", "0.08em").text("BLACK →");
+      .attr("x", (whiteCount + blackCount / 2) * cw)
+      .attr("y", -labelH)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "hanging")
+      .attr("font-size", "7px")
+      .attr("fill", "rgba(56,189,248,0.45)")
+      .attr("font-family", "monospace")
+      .attr("font-weight", "black")
+      .attr("letter-spacing", "0.08em")
+      .text("BLACK →");
 
     type CellDatumEdge = { from: string; to: string; weight: number };
-    type CellDatum = { rowKey: string; colKey: string; ri: number; ci: number; currentAttacks: CellDatumEdge[]; currentDefenses: CellDatumEdge[] };
+    type CellDatum = {
+      rowKey: string;
+      colKey: string;
+      ri: number;
+      ci: number;
+      currentAttacks: CellDatumEdge[];
+      currentDefenses: CellDatumEdge[];
+    };
     const cellData: CellDatum[] = matrixKeys.flatMap((rowKey, ri) =>
       matrixKeys.map((colKey, ci) => {
         const cellKey = `${rowKey}|${colKey}`;
@@ -958,7 +1118,9 @@ function CentralityHeatmapD3({
       .attr("width", cw)
       .attr("height", ch)
       .attr("fill", "transparent")
-      .style("cursor", (d) => (d.currentAttacks.length > 0 || d.currentDefenses.length > 0 ? "crosshair" : "default"))
+      .style("cursor", (d) =>
+        d.currentAttacks.length > 0 || d.currentDefenses.length > 0 ? "crosshair" : "default",
+      )
       .on("mousemove", (event: MouseEvent, d) => {
         if (!tooltipEl) return;
         tooltipEl.style.display = "block";
@@ -968,10 +1130,14 @@ function CentralityHeatmapD3({
           `<span style="color:#94a3b8;font-weight:900">${matrixKeyLabel(d.rowKey)} → ${matrixKeyLabel(d.colKey)}</span>`,
         ];
         for (const e of d.currentAttacks) {
-          lines.push(`<span style="color:#f87171">atk ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`);
+          lines.push(
+            `<span style="color:#f87171">atk ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`,
+          );
         }
         for (const e of d.currentDefenses) {
-          lines.push(`<span style="color:#34d399">def ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`);
+          lines.push(
+            `<span style="color:#34d399">def ${e.from}→${e.to}: ${e.weight.toFixed(1)}</span>`,
+          );
         }
         if (d.currentAttacks.length === 0 && d.currentDefenses.length === 0) {
           lines.push(`<span style="color:#475569">no active relation</span>`);
@@ -985,8 +1151,7 @@ function CentralityHeatmapD3({
 
   const hasData =
     matrixKeys.length > 0 &&
-    (Object.keys(matrices.attack.raw).length > 0 ||
-      Object.keys(matrices.defense.raw).length > 0);
+    (Object.keys(matrices.attack.raw).length > 0 || Object.keys(matrices.defense.raw).length > 0);
   if (!hasData) return <EmptyState label="Play moves to build the adjacency matrix" />;
 
   const getModeClass = (m: EdgeMode) => {
@@ -1027,4 +1192,3 @@ function CentralityHeatmapD3({
     </div>
   );
 }
-

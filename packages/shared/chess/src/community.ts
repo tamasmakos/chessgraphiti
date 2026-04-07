@@ -20,7 +20,7 @@
  *
  * @module
  */
-import type { GraphNode, GraphEdge } from "#types";
+import type { GraphEdge, GraphNode } from "#types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -55,10 +55,7 @@ type Partition = Map<string, number>;
  * Each directed edge `(u → v, w)` adds `w` to both `adj[u][v]` and
  * `adj[v][u]`, so the resulting structure is always symmetric.
  */
-function buildAdjacency(
-  nodeIds: readonly string[],
-  edges: readonly GraphEdge[],
-): Adjacency {
+function buildAdjacency(nodeIds: readonly string[], edges: readonly GraphEdge[]): Adjacency {
   const adj: Adjacency = new Map();
   for (const id of nodeIds) {
     adj.set(id, new Map());
@@ -125,11 +122,7 @@ function communityDegreeSum(adj: Adjacency, members: Set<string>): number {
  * Self-edges (node appearing in `community`) are excluded — they do not
  * contribute to the modularity-gain calculation when moving a node.
  */
-function edgesToCommunity(
-  adj: Adjacency,
-  node: string,
-  community: Set<string>,
-): number {
+function edgesToCommunity(adj: Adjacency, node: string, community: Set<string>): number {
   const neighbors = adj.get(node);
   if (!neighbors) return 0;
   let sum = 0;
@@ -179,10 +172,7 @@ function modularityDelta(
   const sigmaNew = communityDegreeSum(adj, newMembers);
   const sigmaOld = communityDegreeSum(adj, oldMembers) - ki; // Σ_{old \ {i}}
 
-  return (
-    (kiNew - kiOld) / m -
-    (resolution * ki * (sigmaNew - sigmaOld)) / (2 * m * m)
-  );
+  return (kiNew - kiOld) / m - (resolution * ki * (sigmaNew - sigmaOld)) / (2 * m * m);
 }
 
 // ---------------------------------------------------------------------------
@@ -235,14 +225,7 @@ function localMoving(
 
       for (const candidateCid of neighbourCids) {
         const candidateMembers = communityMembers(partition, candidateCid);
-        const gain = modularityDelta(
-          adj,
-          node,
-          currentMembers,
-          candidateMembers,
-          m,
-          resolution,
-        );
+        const gain = modularityDelta(adj, node, currentMembers, candidateMembers, m, resolution);
         if (gain > bestGain) {
           bestGain = gain;
           bestCid = candidateCid;
@@ -352,10 +335,7 @@ function refinement(
  * Find connected components within a subset of nodes via BFS.
  * Only edges whose *both* endpoints belong to `members` are traversed.
  */
-function connectedComponents(
-  members: Set<string>,
-  adj: Adjacency,
-): Set<string>[] {
+function connectedComponents(members: Set<string>, adj: Adjacency): Set<string>[] {
   const visited = new Set<string>();
   const components: Set<string>[] = [];
 
@@ -413,10 +393,7 @@ interface AggregationResult {
  * @returns The aggregated graph, or `null` if every node is already its
  *          own community (nothing to aggregate).
  */
-function aggregate(
-  adj: Adjacency,
-  partition: Partition,
-): AggregationResult | null {
+function aggregate(adj: Adjacency, partition: Partition): AggregationResult | null {
   // Group nodes by community id
   const cidToMembers = new Map<number, string[]>();
   for (const [node, cid] of partition) {

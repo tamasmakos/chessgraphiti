@@ -1,16 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildGraph } from "../graph-algo.ts";
-import {
-  computePositionFragility,
-  computeStrategicTension,
-} from "../position-metrics.ts";
+import { computePositionFragility, computeStrategicTension } from "../position-metrics.ts";
 
-const STARTING_FEN =
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // Scholar's mate threat: queen and bishop bearing down.
-const SCHOLARS_MATE_SETUP =
-  "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4";
+const SCHOLARS_MATE_SETUP = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4";
 
 // ---------------------------------------------------------------------------
 // computePositionFragility

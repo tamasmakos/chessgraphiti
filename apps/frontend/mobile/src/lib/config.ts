@@ -16,9 +16,9 @@ export function getConfig(): AppConfig {
   const result = ConfigSchema.safeParse(config);
 
   if (!result.success) {
-    const errors = result.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
+    const errors = result.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
     throw new Error(
-      `Invalid configuration. Please check your .env file or app.json:\n${errors}\n\n`
+      `Invalid configuration. Please check your .env file or app.json:\n${errors}\n\n`,
     );
   }
 

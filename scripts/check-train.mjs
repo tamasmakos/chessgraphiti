@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -26,15 +26,18 @@ console.log("( count:", openParen, ") count:", closeParen, "balance:", openParen
 // Print lines around 535
 console.log("\n--- Lines 530-540 ---");
 for (let i = 529; i <= 539 && i < lines.length; i++) {
-  console.log(`${i+1}: ${lines[i]}`);
+  console.log(`${i + 1}: ${lines[i]}`);
 }
 
 // Find any duplicate export statements
-const exportMatches = lines.filter(l => l.trim().startsWith("export const Route"));
+const exportMatches = lines.filter((l) => l.trim().startsWith("export const Route"));
 console.log("\nExport Route declarations:", exportMatches.length);
 
 // Check for duplicate function declarations
-const funcMatches = lines.filter(l => l.trim().startsWith("function TrainPage") || l.trim().startsWith("export function TrainPage"));
+const funcMatches = lines.filter(
+  (l) =>
+    l.trim().startsWith("function TrainPage") || l.trim().startsWith("export function TrainPage"),
+);
 console.log("TrainPage declarations:", funcMatches.length, funcMatches);
 
 // Find the return statement in TrainPage

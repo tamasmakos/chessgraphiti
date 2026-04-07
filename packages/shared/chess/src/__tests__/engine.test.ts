@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseBestMove, parseEvaluation, buildGoCommand } from "#engine";
+import { describe, expect, it } from "vitest";
+import { buildGoCommand, parseBestMove, parseEvaluation } from "#engine";
 
 // ---------------------------------------------------------------------------
 // parseBestMove
@@ -35,10 +35,7 @@ describe("parseBestMove", () => {
   });
 
   it("uses the last bestmove line when multiple are present", () => {
-    const output = [
-      "bestmove a2a3",
-      "bestmove e2e4 ponder d7d5",
-    ].join("\n");
+    const output = ["bestmove a2a3", "bestmove e2e4 ponder d7d5"].join("\n");
 
     const result = parseBestMove(output);
     expect(result.bestMove).toBe("e2e4");
@@ -46,9 +43,7 @@ describe("parseBestMove", () => {
   });
 
   it("throws when no bestmove line is found", () => {
-    expect(() => parseBestMove("info depth 10 score cp 20")).toThrow(
-      'No "bestmove" line found',
-    );
+    expect(() => parseBestMove("info depth 10 score cp 20")).toThrow('No "bestmove" line found');
   });
 
   it("throws on empty string", () => {
@@ -121,9 +116,7 @@ describe("parseEvaluation", () => {
   });
 
   it("throws when no info depth line is found", () => {
-    expect(() => parseEvaluation("bestmove e2e4")).toThrow(
-      'No "info depth" line found',
-    );
+    expect(() => parseEvaluation("bestmove e2e4")).toThrow('No "info depth" line found');
   });
 
   it("returns empty pv when no pv in info line", () => {

@@ -20,26 +20,50 @@ export type InfluenceMap = Map<string, SquareInfluence>;
 // ---------------------------------------------------------------------------
 
 const KNIGHT_MOVES: ReadonlyArray<readonly [number, number]> = [
-  [1, 2], [1, -2], [-1, 2], [-1, -2],
-  [2, 1], [2, -1], [-2, 1], [-2, -1],
+  [1, 2],
+  [1, -2],
+  [-1, 2],
+  [-1, -2],
+  [2, 1],
+  [2, -1],
+  [-2, 1],
+  [-2, -1],
 ];
 
 const ROOK_DIRS: ReadonlyArray<readonly [number, number]> = [
-  [0, 1], [0, -1], [1, 0], [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
 ];
 
 const BISHOP_DIRS: ReadonlyArray<readonly [number, number]> = [
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ];
 
 const QUEEN_DIRS: ReadonlyArray<readonly [number, number]> = [
-  [0, 1], [0, -1], [1, 0], [-1, 0],
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ];
 
 const KING_MOVES: ReadonlyArray<readonly [number, number]> = [
-  [0, 1], [0, -1], [1, 0], [-1, 0],
-  [1, 1], [1, -1], [-1, 1], [-1, -1],
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ];
 
 const BLEED_FACTOR = 0.28;
@@ -74,7 +98,13 @@ function coordsToSquare(file: number, rank: number): string {
 function getOrCreate(map: InfluenceMap, sq: string): SquareInfluence {
   let entry = map.get(sq);
   if (!entry) {
-    entry = { whiteWeight: 0, blackWeight: 0, whiteCommId: -1, blackCommId: -1, hasKnightInfluence: false };
+    entry = {
+      whiteWeight: 0,
+      blackWeight: 0,
+      whiteCommId: -1,
+      blackCommId: -1,
+      hasKnightInfluence: false,
+    };
     map.set(sq, entry);
   }
   return entry;
@@ -187,7 +217,10 @@ export function computeInfluenceField(snapshot: GraphSnapshot): Result<Influence
         break;
       case "p": {
         const dr = ctx.color === "w" ? 1 : -1;
-        const pawnMoves: ReadonlyArray<readonly [number, number]> = [[-1, dr], [1, dr]];
+        const pawnMoves: ReadonlyArray<readonly [number, number]> = [
+          [-1, dr],
+          [1, dr],
+        ];
         applyStepInfluence(map, file, rank, pawnMoves, baseW, ctx, false);
         break;
       }

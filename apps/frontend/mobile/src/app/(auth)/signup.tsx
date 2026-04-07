@@ -1,14 +1,14 @@
+import { useRouter } from "expo-router";
 import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SignUp } from "#components/auth/signup";
-import { useRouter } from "expo-router";
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -16,7 +16,8 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}>
+      style={styles.container}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SignUp onSuccess={() => router.replace("/(tabs)")} />
 

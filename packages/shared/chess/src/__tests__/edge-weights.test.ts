@@ -1,21 +1,12 @@
-import { describe, it, expect } from "vitest";
-import {
-  computeSEE,
-  computeDefenseWeight,
-  buildEdges,
-} from "../edge-weights.ts";
-import type { PieceInfo, AttackMap } from "../types.ts";
+import { describe, expect, it } from "vitest";
+import { buildEdges, computeDefenseWeight, computeSEE } from "../edge-weights.ts";
+import type { AttackMap, PieceInfo } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePiece(
-  square: string,
-  type: string,
-  color: string,
-  value: number,
-): PieceInfo {
+function makePiece(square: string, type: string, color: string, value: number): PieceInfo {
   return {
     square,
     type: type as PieceInfo["type"],
@@ -141,9 +132,7 @@ describe("buildEdges", () => {
 
     const edges = buildEdges(pieces, attackMap);
 
-    const attackEdge = edges.find(
-      (e) => e.from === "e4" && e.to === "d5" && e.type === "attack",
-    );
+    const attackEdge = edges.find((e) => e.from === "e4" && e.to === "d5" && e.type === "attack");
     expect(attackEdge).toBeDefined();
     expect(attackEdge!.weight).toBe(3); // target.value = 3
   });
@@ -160,9 +149,7 @@ describe("buildEdges", () => {
 
     const edges = buildEdges(pieces, attackMap);
 
-    const defenseEdge = edges.find(
-      (e) => e.from === "d1" && e.to === "d4" && e.type === "defense",
-    );
+    const defenseEdge = edges.find((e) => e.from === "d1" && e.to === "d4" && e.type === "defense");
     expect(defenseEdge).toBeDefined();
     expect(defenseEdge!.weight).toBe(10); // 9 + 5 * 0.2 = 10
   });
@@ -183,9 +170,7 @@ describe("buildEdges", () => {
     const edges = buildEdges(pieces, attackMap);
 
     // SEE(1, [9], [9]): white queen gains 1 but black queen recaptures worth 9 → net = -8 → 0
-    const attackEdge = edges.find(
-      (e) => e.from === "e4" && e.to === "d5" && e.type === "attack",
-    );
+    const attackEdge = edges.find((e) => e.from === "e4" && e.to === "d5" && e.type === "attack");
     expect(attackEdge).toBeUndefined();
   });
 
@@ -220,16 +205,12 @@ describe("buildEdges", () => {
     expect(defenseEdges.length).toBeGreaterThan(0);
 
     // Verify the d4→c3 attack edge
-    const pawnAttacksKnight = attackEdges.find(
-      (e) => e.from === "d4" && e.to === "c3",
-    );
+    const pawnAttacksKnight = attackEdges.find((e) => e.from === "d4" && e.to === "c3");
     expect(pawnAttacksKnight).toBeDefined();
     expect(pawnAttacksKnight!.weight).toBe(3); // target.value = 3
 
     // Verify the e5→d4 defense edge
-    const bishopDefendsPawn = defenseEdges.find(
-      (e) => e.from === "e5" && e.to === "d4",
-    );
+    const bishopDefendsPawn = defenseEdges.find((e) => e.from === "e5" && e.to === "d4");
     expect(bishopDefendsPawn).toBeDefined();
     expect(bishopDefendsPawn!.weight).toBeCloseTo(1.6); // 1 + 3 * 0.2
   });
@@ -244,7 +225,10 @@ describe("buildEdges", () => {
     const king = makePiece("e1", "k", "w", 1000);
     const pieces = [rook, king];
 
-    const attackMap: AttackMap = new Map([["d1", ["e1"]], ["e1", []]]);
+    const attackMap: AttackMap = new Map([
+      ["d1", ["e1"]],
+      ["e1", []],
+    ]);
 
     const edges = buildEdges(pieces, attackMap);
 

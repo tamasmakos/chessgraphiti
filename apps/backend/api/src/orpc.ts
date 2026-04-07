@@ -1,6 +1,5 @@
 import { os } from "@orpc/server";
-import type { User } from "better-auth";
-import type { Session } from "better-auth";
+import type { Session, User } from "better-auth";
 
 /**
  * Error map for `.errors()` — ORPC turns each entry into callable constructors on the
