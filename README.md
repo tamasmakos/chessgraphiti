@@ -1,3 +1,18 @@
+# ChessGraphiti: Graph-Native Intelligence for the Modern Game
+
+The dominant representation of chess knowledge—as move sequences, scalar evaluations, and engine-optimal lines—is mismatched with how humans learn, prepare, and fail under pressure. This representational deficiency is not an engineering problem to be patched by deeper search or better NLP; it is a structural gap in how we model the game.
+
+**ChessGraphiti** is the first analytics and preparation platform built on a different ontology: **Graph-Native Intelligence.**
+
+- **Positions are Relational Graphs:** Pieces are nodes; attacks and defenses are directed, typed, weighted relationships.
+- **Games are Temporal Trajectories:** A game is a narrative of structural transformation across graph states, not just a series of centipawn scores.
+- **Preparation is Structural Coverage:** We move beyond "lines" to map the structural neighborhoods of your repertoire, identifying motif-level gaps before they become tournament-losing failures.
+- **Practical Sharpness as a Metric:** Quantifying "how hard" a position is for a human to navigate, bridging the gap between engine perfection and practical reality.
+
+We aren't building another engine. We are building the first platform whose native representation matches the structure of human chess reasoning.
+
+---
+
 # ChessGraphiti
 
 ChessGraphiti helps people learn chess faster by turning positions into directed weighted graphs and games into temporal graph experiences.
