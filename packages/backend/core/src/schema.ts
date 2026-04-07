@@ -100,6 +100,41 @@ export interface Verifications {
   value: string;
 }
 
+export interface TemporalGraphs {
+  id: Generated<string>;
+  gameId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface GraphNodes {
+  id: Generated<string>;
+  temporalGraphId: string;
+  ply: number;
+  square: string;
+  pieceType: string;
+  color: string;
+  pieceValue: number;
+  communityId: number | null;
+  centralityDegree: number | null;
+  centralityWeighted: number | null;
+  centralityBetweenness: number | null;
+  centralityCloseness: number | null;
+  centralityPageRank: number | null;
+  createdAt: Timestamp;
+}
+
+export interface GraphEdges {
+  id: Generated<string>;
+  temporalGraphId: string;
+  ply: number;
+  fromSquare: string;
+  toSquare: string;
+  edgeType: string;
+  weight: number;
+  createdAt: Timestamp;
+}
+
 export interface DB {
   accounts: Accounts;
   exports: Exports;
@@ -108,4 +143,7 @@ export interface DB {
   sessions: Sessions;
   users: Users;
   verifications: Verifications;
+  temporalGraphs: TemporalGraphs;
+  graphNodes: GraphNodes;
+  graphEdges: GraphEdges;
 }

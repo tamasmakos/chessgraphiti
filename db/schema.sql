@@ -106,3 +106,51 @@ CREATE TABLE exports (
 
 CREATE INDEX exports_user_id_idx ON exports(user_id);
 CREATE INDEX exports_game_id_idx ON exports(game_id);
+
+-- ---------------------------------------------------------------------------
+-- Graph Theory & Temporal Analysis
+-- ---------------------------------------------------------------------------
+
+-- Temporal Graphs represent a series of graph snapshots over time (e.g., a game).
+CREATE TABLE temporal_graphs (
+	id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	game_id uuid NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+	created_at timestamp NOT NULL DEFAULT NOW(),
+	updated_at timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX temporal_graphs_game_id_idx ON temporal_graphs(game_id);
+
+-- Graph Nodes (Pieces)
+CREATE TABLE graph_nodes (
+	id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	temporal_graph_id uuid NOT NULL REFERENCES temporal_graphs(id) ON DELETE CASCADE,
+	ply int NOT NULL, -- The half-move number this node belongs to
+	square text NOT NULL, -- e.g. 'e4'
+	piece_type text NOT NULL, -- p, n, b, r, q, k
+	color text NOT NULL, -- w, b
+	piece_value float NOT NULL,
+	community_id int,
+	centrality_degree float,
+	centrality_weighted float,
+	centrality_betweenness float,
+	centrality_closeness float,
+	centrality_pagerank float,
+	created_at timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX graph_nodes_temporal_graph_id_ply_idx ON graph_nodes(temporal_graph_id, ply);
+
+-- Graph Edges (Interactions: Attacks/Defenses)
+CREATE TABLE graph_edges (
+	id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	temporal_graph_id uuid NOT NULL REFERENCES temporal_graphs(id) ON DELETE CASCADE,
+	ply int NOT NULL,
+	from_square text NOT NULL,
+	to_square text NOT NULL,
+	edge_type text NOT NULL, -- 'attack' | 'defense'
+	weight float NOT NULL,
+	created_at timestamp NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX graph_edges_temporal_graph_id_ply_idx ON graph_edges(temporal_graph_id, ply);

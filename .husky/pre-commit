@@ -1,5 +1,15 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# Frontend / Fullstack: Biome
 git diff --cached --name-only --diff-filter=ACMR -z -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mts' '*.cts' '*.json' '*.jsonc' '*.css' '*.md' '*.html' \
 	| xargs -0 --no-run-if-empty pnpm exec biome check --files-ignore-unknown=true --css-parse-tailwind-directives=true --no-errors-on-unmatched
+
+# Backend / ML: Ruff
+# Since this is a monorepo and Ruff applies to Python, we check for .py files.
+# If the ML repo is separate, this hook would ideally be in its own .pre-commit-config.yaml.
+# Here we add it to the Turborepo's global pre-commit for consistency.
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.py' \
+	| xargs -0 --no-run-if-empty ruff check --fix --exit-zero
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.py' \
+	| xargs -0 --no-run-if-empty ruff format
