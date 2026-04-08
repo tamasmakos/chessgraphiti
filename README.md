@@ -95,3 +95,5 @@ Ensure you have **Node.js >= 24** and **pnpm** installed.
 - **Terminology:** Use precise chess language: *position, line, opening, attack, defense, pressure, protection, centrality, community, modularity, evaluation, export*.
 
 ---
+
+smoke-test-forge-coder
