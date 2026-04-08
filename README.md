@@ -97,3 +97,4 @@ Ensure you have **Node.js >= 24** and **pnpm** installed.
 ---
 
 smoke-test-forge-coder
+<!-- smoke-test-forge-coder -->
